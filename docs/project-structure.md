@@ -81,7 +81,7 @@ roles/<role-name>/
 
 | File | Purpose |
 |---|---|
-| `group_vars/all.yml` | Vault-encrypted secrets shared across all hosts |
+| `group_vars/all.yml` | Vault-encrypted variables shared across all hosts (passwords, IPs, domain, SSH port) |
 | `roles/serversconf/files/public_keys/present/admin/` | SSH public keys deployed to all servers as authorized admin keys |
 | `roles/adempiere-restoredb/files/` | PostgreSQL backup files (`.sql.gz`) to be restored |
 | `roles/deploy-adempiere/templates/override.env.j2` | Generates the Docker Compose environment file with runtime values |
