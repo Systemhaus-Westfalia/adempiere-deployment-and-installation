@@ -17,3 +17,22 @@ root_ansible_password: 'your-root-password'
 
 # Custom SSH port (set by serversconf.yml — must match what is already on the servers)
 custom_sshport: 10099
+
+# ---------------------------------------------------------------------------
+# NOTE: Additional secrets are stored in encrypted role vars files.
+# These files use a SEPARATE vault password (not the one for this file).
+# They must be decrypted/edited individually with their own password.
+#
+# roles/serversconf/vars/main.yml
+#   username       : admin user to create on the servers (e.g. "westfalia")
+#   your_password  : SHA-512 hashed password for that user
+#                    Generate with: mkpasswd --method=sha-512
+#   user_path      : home directory base (e.g. /home)
+#
+# roles/deploy-adempiere/vars/main.yml
+#   postgres_password : PostgreSQL superuser password
+#
+# roles/deploy-traefik/vars/main.yml  (⚠ partially plaintext — see known-issues.md item 7)
+#   cloudflare_tocken : Cloudflare API token for DNS-01 TLS challenge (note: variable name is misspelled)
+#   cloudflare_email  : Email for Let's Encrypt registration
+# ---------------------------------------------------------------------------
