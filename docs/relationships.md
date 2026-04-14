@@ -163,10 +163,10 @@ main.yml                   --> 1. genkey.yml
                                5. deploy-vim.yml
                                6. install-docker.yml
 
-main-backend.yml (pending) --> 1. main.yml  (runs all 6 steps above)
+main-backend.yml (TO-DO)   --> 1. main.yml  (runs all 6 steps above)
 (base + BackEnd app)           2. deploy-adempiere.yml
 
-main-frontend.yml (pending)--> 1. main.yml  (runs all 6 steps above)
+main-frontend.yml (TO-DO)  --> 1. main.yml  (runs all 6 steps above)
 (base + FrontEnd proxy)        2. deploy-traefik.yml
 ```
 
