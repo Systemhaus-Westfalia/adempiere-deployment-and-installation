@@ -107,6 +107,7 @@ For the detailed relationships between the specific playbooks, roles, and invent
 | Installation — step by step | [docs/installation.md](docs/installation.md) |
 | Running the system & playbook reference | [docs/running.md](docs/running.md) |
 | Operations & day-2 tasks | [docs/operations.md](docs/operations.md) |
+| Testing & debugging guide | [docs/testing.md](docs/testing.md) |
 | Debugging & troubleshooting | [docs/troubleshooting.md](docs/troubleshooting.md) |
 | Known issues & technical debt | [docs/known-issues.md](docs/known-issues.md) |
 | Security notes | [docs/security.md](docs/security.md) |
