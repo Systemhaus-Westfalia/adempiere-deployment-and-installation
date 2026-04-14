@@ -58,9 +58,11 @@ roles/<role-name>/
 ├── tasks/
 │   └── main.yml        # Entry point; some roles include sub-task files (start.yml, wait.yml…)
 ├── defaults/
-│   └── main.yml        # Default variable values — override these to customize behavior
+│   └── main.yml        # Lowest-priority variables — safe fallbacks the operator is expected to override
+│                       # (e.g. install_path, repo_url, repo_version)
 ├── vars/
-│   └── main.yml        # Role-level variables (higher precedence than defaults)
+│   └── main.yml        # Higher-priority role constants — treated as fixed by the role author,
+│                       # only overridable via CLI -e flags. Used here for vault-encrypted secrets.
 ├── templates/
 │   └── *.j2            # Jinja2 templates rendered and deployed to target servers
 ├── files/              # Static files copied to target servers as-is
