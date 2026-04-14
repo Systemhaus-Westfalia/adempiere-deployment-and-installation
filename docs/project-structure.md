@@ -15,11 +15,14 @@ deployment_and_installation/
 │   ├── all.yml                    # AES-256 vault-encrypted secrets + deployment values — gitignored
 │   └── all_template.yml           # Template for all.yml — copy this, fill in values, then encrypt
 │
-├── Orchestration playbooks
-├── main.yml                       # Full run: genkey → serversprep → so-updates → serversconf → deploy-vim → install-docker
+│                                  # --- Orchestration playbooks ---
+│                                  # Chain individual playbooks into full deployment sequences.
+│                                  # Run one of these to execute multiple steps with a single command.
+├── main.yml                       # Base setup only: genkey → serversprep → so-updates → serversconf → deploy-vim → install-docker
 ├── main-w-traefik.yml             # Full end-to-end: base setup + deploy-traefik + deploy-adempiere
 │
-├── Individual playbooks
+│                                  # --- Individual playbooks ---
+│                                  # Each does exactly one thing. Can be run standalone or called by an orchestration playbook.
 ├── genkey.yml                     # Generate RSA keypair on the control node (localhost)
 ├── serversprep.yml                # Distribute SSH public key to all contabo servers
 ├── so-updates.yml                 # OS dist-upgrade + conditional reboot
