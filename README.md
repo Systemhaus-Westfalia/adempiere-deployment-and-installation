@@ -96,12 +96,13 @@ For the detailed relationships between the specific playbooks, roles, and invent
 | Topic | File |
 |---|---|
 | Technologies: Ansible, Traefik, Docker | [docs/technologies.md](docs/technologies.md) |
-| System requirements | [docs/requirements.md](docs/requirements.md) |
 | Architecture & network layout | [docs/architecture.md](docs/architecture.md) |
+| System requirements | [docs/requirements.md](docs/requirements.md) |
 | Project structure | [docs/project-structure.md](docs/project-structure.md) |
 | File relationships — playbooks, roles, inventory | [docs/relationships.md](docs/relationships.md) |
 | Secrets & Vault management | [docs/vault.md](docs/vault.md) |
 | Configuration reference | [docs/configuration.md](docs/configuration.md) |
+| Complete variable reference | [docs/variables.md](docs/variables.md) |
 | Getting started — first deployment | [docs/getting-started.md](docs/getting-started.md) |
 | Installation — step by step | [docs/installation.md](docs/installation.md) |
 | Running the system & playbook reference | [docs/running.md](docs/running.md) |
@@ -110,7 +111,6 @@ For the detailed relationships between the specific playbooks, roles, and invent
 | Debugging & troubleshooting | [docs/troubleshooting.md](docs/troubleshooting.md) |
 | Known issues & technical debt | [docs/known-issues.md](docs/known-issues.md) |
 | Security notes | [docs/security.md](docs/security.md) |
-| Complete variable reference | [docs/variables.md](docs/variables.md) |
 
 ---
 
