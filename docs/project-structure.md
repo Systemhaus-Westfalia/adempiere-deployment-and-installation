@@ -90,4 +90,4 @@ roles/<role-name>/
 
 ---
 
-[← Architecture](architecture.md) | [Next: Vault & Secrets →](vault.md)
+[← Architecture](architecture.md) | [Next: Vault Management →](vault.md)

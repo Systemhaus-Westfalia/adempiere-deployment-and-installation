@@ -306,7 +306,7 @@ group_vars/all.yml                ← vault-encrypted secrets + deployment value
 roles/<role>/defaults/main.yml    ← role defaults (lowest — always overridable)
 ```
 
-> All secrets and deployment values (IPs, domain, SSH port) are stored together in `group_vars/all.yml`.
+> All variables (passwords, IPs, domain, SSH port) are stored together in `group_vars/all.yml`.
 
 ---
 

@@ -110,4 +110,4 @@ Note: changing the branch does **not** automatically trigger a re-deploy if the 
 
 ---
 
-[← Vault & Secrets](vault.md) | [Next: Getting Started →](getting-started.md)
+[← Vault Management](vault.md) | [Next: Getting Started →](getting-started.md)

@@ -168,7 +168,7 @@ This approach requires no public HTTP port for certificate issuance and works ev
 | Docker API | Access via socket-proxy (read-only) | Yes — `deploy-traefik` role |
 | TLS | Let's Encrypt certificate, auto-renewed by Traefik | Yes — `deploy-traefik` role |
 | OS patches | `unattended-upgrades` applies security updates automatically | Yes — `serversconf` role |
-| Secrets | Ansible Vault (AES-256) | Yes — `group_vars/all.yml` |
+| Encrypted variables | Ansible Vault (AES-256) | Yes — `group_vars/all.yml` |
 | Network firewall | Block direct access to BackEnd ports | **No — must be configured at the hosting provider** |
 
 ---

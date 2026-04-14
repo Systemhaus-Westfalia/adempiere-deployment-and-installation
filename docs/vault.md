@@ -1,4 +1,4 @@
-# Secrets & Vault Management
+# Vault Management
 
 ## What is the Vault?
 
@@ -50,7 +50,7 @@ echo "YourStrongVaultPassword" > ~/.vault_pass.txt
 chmod 600 ~/.vault_pass.txt
 ```
 
-**2. Edit the vault file with your secrets:**
+**2. Edit the vault file with your variables:**
 ```bash
 ansible-vault edit group_vars/all.yml
 ```

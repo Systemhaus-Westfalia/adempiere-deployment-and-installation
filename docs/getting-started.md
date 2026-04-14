@@ -4,7 +4,7 @@ This page gives you the complete command sequence for a first deployment. Each s
 
 Before running anything, work through:
 1. [requirements.md](requirements.md) — verify your control node and servers meet all requirements
-2. [vault.md](vault.md) — set up your vault password file and populate all secrets
+2. [vault.md](vault.md) — set up your vault password file and populate all variables
 
 ---
 
