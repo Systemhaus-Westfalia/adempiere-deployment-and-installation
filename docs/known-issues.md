@@ -74,7 +74,23 @@ See [security.md](security.md) — this is the most urgent item before pushing t
 
 ---
 
-## 9. Future improvement — split `group_vars/all.yml` into vault + override
+## 9. Admin user password needs to be changed before production use
+
+**File:** `roles/serversconf/vars/main.yml` — variable `your_password`  
+**Problem:** The current SHA-512 hash is a placeholder/test password. It must be replaced with a
+strong password before deploying to any production server.  
+**Fix:** Generate a new hash and update the vault:
+```bash
+# Generate a new SHA-512 hash (you will be prompted for the password)
+mkpasswd --method=sha-512
+
+# Edit the vault file and replace your_password with the new hash
+ansible-vault edit roles/serversconf/vars/main.yml
+```
+
+---
+
+## 10. Future improvement — split `group_vars/all.yml` into vault + override
 
 **Current state:** All variables (vault secrets and deployment-specific values such as IPs, domain, SSH port) are stored together in the single encrypted file `group_vars/all.yml`.
 

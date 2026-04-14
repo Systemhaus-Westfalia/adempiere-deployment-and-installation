@@ -29,8 +29,9 @@ custom_sshport: 10099
 #
 # roles/serversconf/vars/main.yml         (password: MyVaultPassword)
 #   username       : admin user to create on the servers (e.g. "westfalia")
-#   your_password  : SHA-512 hashed password for that user
+#   your_password  : SHA-512 hashed password for that user — ⚠ CHANGE BEFORE PRODUCTION
 #                    Generate with: mkpasswd --method=sha-512
+#                    Then: ansible-vault edit roles/serversconf/vars/main.yml
 #   user_path      : home directory base (e.g. /home)
 #
 # roles/deploy-adempiere/vars/main.yml    (password: MyVaultPassword)
