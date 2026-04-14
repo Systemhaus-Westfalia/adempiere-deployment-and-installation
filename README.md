@@ -100,7 +100,7 @@ For the detailed relationships between the specific playbooks, roles, and invent
 | System requirements | [docs/requirements.md](docs/requirements.md) |
 | Project structure | [docs/project-structure.md](docs/project-structure.md) |
 | File relationships — playbooks, roles, inventory | [docs/relationships.md](docs/relationships.md) |
-| Secrets & Vault management | [docs/vault.md](docs/vault.md) |
+| Vault management | [docs/vault.md](docs/vault.md) |
 | Configuration reference | [docs/configuration.md](docs/configuration.md) |
 | Complete variable reference | [docs/variables.md](docs/variables.md) |
 | Getting started — first deployment | [docs/getting-started.md](docs/getting-started.md) |
