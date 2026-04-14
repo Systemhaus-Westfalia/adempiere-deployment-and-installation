@@ -116,6 +116,34 @@ Copy the output (it starts with `$6$`) into the vault.
 
 ---
 
+## Role Vars Files
+
+Two role vars files are also vault-encrypted and use the **same password** as `group_vars/all.yml`
+(`MyVaultPassword` by default — change before going live):
+
+| File | Contains |
+|---|---|
+| `roles/serversconf/vars/main.yml` | `username`, `your_password` (SHA-512 hash), `user_path` |
+| `roles/deploy-adempiere/vars/main.yml` | `postgres_password` |
+
+To view or edit them:
+```bash
+ansible-vault view roles/serversconf/vars/main.yml
+ansible-vault edit roles/deploy-adempiere/vars/main.yml
+```
+
+No `--ask-vault-pass` needed — `ansible.cfg` reads `~/.vault_pass.txt` automatically.
+
+To change the vault password (applies to all three files at once):
+```bash
+printf "NewPassword" > /tmp/new_pass.txt
+ansible-vault rekey --vault-password-file ~/.vault_pass.txt --new-vault-password-file /tmp/new_pass.txt \
+  group_vars/all.yml roles/serversconf/vars/main.yml roles/deploy-adempiere/vars/main.yml
+cp /tmp/new_pass.txt ~/.vault_pass.txt && rm /tmp/new_pass.txt
+```
+
+---
+
 ## How ansible.cfg connects the vault
 
 ```ini

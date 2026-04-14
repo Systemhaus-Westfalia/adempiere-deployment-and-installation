@@ -20,19 +20,23 @@ custom_sshport: 10099
 
 # ---------------------------------------------------------------------------
 # NOTE: Additional secrets are stored in encrypted role vars files.
-# These files use a SEPARATE vault password (not the one for this file).
-# They must be decrypted/edited individually with their own password.
+# These files use a SEPARATE vault password: MyVaultPassword (default — change before going live).
 #
-# roles/serversconf/vars/main.yml
+# To view or edit them:
+#   ansible-vault view  roles/serversconf/vars/main.yml      --ask-vault-pass
+#   ansible-vault edit  roles/serversconf/vars/main.yml      --ask-vault-pass
+#   ansible-vault rekey roles/serversconf/vars/main.yml      --ask-vault-pass   (to change the password)
+#
+# roles/serversconf/vars/main.yml         (password: MyVaultPassword)
 #   username       : admin user to create on the servers (e.g. "westfalia")
 #   your_password  : SHA-512 hashed password for that user
 #                    Generate with: mkpasswd --method=sha-512
 #   user_path      : home directory base (e.g. /home)
 #
-# roles/deploy-adempiere/vars/main.yml
+# roles/deploy-adempiere/vars/main.yml    (password: MyVaultPassword)
 #   postgres_password : PostgreSQL superuser password
 #
-# roles/deploy-traefik/vars/main.yml  (⚠ partially plaintext — see known-issues.md item 7)
+# roles/deploy-traefik/vars/main.yml  (⚠ plaintext — see known-issues.md item 7)
 #   cloudflare_tocken : Cloudflare API token for DNS-01 TLS challenge (note: variable name is misspelled)
 #   cloudflare_email  : Email for Let's Encrypt registration
 # ---------------------------------------------------------------------------
