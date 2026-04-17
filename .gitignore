@@ -1,8 +1,14 @@
 # Vault — real secrets file, never commit
 group_vars/all.yml
 
-# SSH private key — never commit; public key (.pub) is intentionally tracked
-ssh_keys/adempiere_installation_key
+# SSH keys — entire directory is operator-specific, never commit
+# Each operator runs genkey.yml after cloning to generate their own keypair.
+# Strongly recommended: keep the default key name (adempiere_installation_key)
+# so all project references work without any configuration change.
+ssh_keys/
+
+# SSH public keys deployed to servers — generated at runtime by genkey.yml, never commit
+roles/serversconf/files/public_keys/present/admin/*.pub
 
 # Ansible runtime files
 *.retry

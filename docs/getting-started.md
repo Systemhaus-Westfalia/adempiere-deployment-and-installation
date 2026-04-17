@@ -38,8 +38,8 @@ Run these once on your **local machine** before any playbook. Nothing is sent to
 
 > **If you have PostgreSQL or Docker installed locally:**  
 > they are not affected. `ansible-galaxy collection install` only places Python module code in `~/.ansible/collections/` — it installs no services and does not interact with any local database or Docker daemon.  
-> All playbook tasks run on the remote servers.   
-> The one exception is `genkey.yml`, which runs locally but only generates an SSH keypair in `~/.ssh/`.
+> All playbook tasks run on the remote servers.  
+> The one exception is `genkey.yml`, which runs locally and generates an SSH keypair inside the project under `ssh_keys/`.
 
 ```bash
 # Install required Ansible collections (Python module code only — no services installed locally).
@@ -56,12 +56,30 @@ ansible-vault edit group_vars/all.yml
 
 See [vault.md](vault.md) for the full list of required variables.
 
+### Step 0 — Generate your SSH keypair (mandatory, do this first)
+
+> **This step is required before running any other playbook.**  
+> The repository does not include SSH keys — each operator generates their own after cloning.  
+> All project references use the default key name `adempiere_installation_key`.  
+> **Strongly recommended:** keep this name. Changing it requires updating `ansible_ssh_private_key_file` in `group_vars/all.yml` and the `key_name` default in `roles/genkey/defaults/main.yml`.
+
+```bash
+ansible-playbook genkey.yml
+```
+
+This creates:
+- `ssh_keys/adempiere_installation_key` — private key (gitignored, never commit)
+- `ssh_keys/adempiere_installation_key.pub` — public key (gitignored)
+- `roles/serversconf/files/public_keys/present/admin/adempiere_installation_key.pub` — copy deployed to servers by `serversconf` (gitignored)
+
+Idempotent — safe to re-run; skips generation if the keypair already exists.
+
 ---
 
 ## Phase 1 — BackEnd dry run
 
 ```bash
-ansible-playbook genkey.yml                              --check
+# genkey.yml was already run in the one-time setup above — skip if keypair exists
 ansible-playbook serversprep.yml    --limit BackEnd      --check
 ansible-playbook so-updates.yml     --limit BackEnd      --check
 ansible-playbook serversconf.yml    --limit BackEnd      --check

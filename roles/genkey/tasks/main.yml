@@ -6,6 +6,7 @@
     path: "{{ playbook_dir }}/ssh_keys"
     state: directory
     mode: '0700'
+  check_mode: false
 
 - name: Ensure the project SSH keypair exists
   community.crypto.openssh_keypair:
@@ -13,13 +14,15 @@
     type: rsa
     size: "{{ key_size }}"
     state: present
-    comment: "admin-key-{{ ansible_facts['nodename'] }}"
+    comment: "adempiere-deployment-key"
   register: ssh_key_info
 
+# In --check mode the keypair was not actually written, so the src does not exist yet — ignore the expected failure.
 - name: Copy public key to serversconf role
   ansible.builtin.copy:
     src: "{{ playbook_dir }}/ssh_keys/{{ key_name }}.pub"
-    dest: "{{ playbook_dir }}/roles/serversconf/files/public_keys/present/admin/{{ ansible_facts['nodename'] }}.pub"
+    dest: "{{ playbook_dir }}/roles/serversconf/files/public_keys/present/admin/{{ key_name }}.pub"
+  ignore_errors: "{{ ansible_check_mode }}"
 
 - name: Show where the keypair was saved
   debug:
