@@ -9,7 +9,8 @@ deployment_and_installation/
 ├── docs/                          # Full documentation (this directory)
 │
 ├── inventories/
-│   └── hosts                      # Static inventory: server IPs and groups
+│   ├── hosts.yml                  # Inventory with real IPs — gitignored, never commit
+│   └── hosts_template.yml         # Template for hosts.yml — copy this and fill in IPs
 │
 ├── group_vars/
 │   ├── all.yml                    # AES-256 vault-encrypted secrets + deployment values — gitignored
@@ -28,7 +29,7 @@ deployment_and_installation/
 │                                  # --- Individual playbooks ---
 │                                  # Each does exactly one thing. Can be run standalone or called by an orchestration playbook.
 ├── genkey.yml                     # Generate RSA keypair on the control node (localhost); stores it in ssh_keys/
-├── serversprep.yml                # Distribute SSH public key to all contabo servers
+├── serversprep.yml                # Distribute SSH public key to all servers servers
 ├── so-updates.yml                 # OS dist-upgrade + conditional reboot
 ├── serversconf.yml                # Server hardening, user creation, SSH config
 ├── install-docker.yml             # Docker CE + Compose plugin
@@ -85,7 +86,8 @@ roles/<role-name>/
 
 | File | Purpose |
 |---|---|
-| `group_vars/all.yml` | Vault-encrypted variables shared across all hosts (passwords, IPs, domain, SSH port) |
+| `inventories/hosts.yml` | Inventory with real server IPs — gitignored; use `hosts_template.yml` as reference |
+| `group_vars/all.yml` | Vault-encrypted variables shared across all hosts (passwords, domain, SSH port) |
 | `ssh_keys/adempiere_installation_key.pub` | Project SSH public key — committed to git; deployed to servers by `serversconf` |
 | `roles/serversconf/files/public_keys/present/admin/` | SSH public keys deployed to all servers as authorized admin keys; populated by `genkey.yml` |
 | `roles/adempiere-restoredb/files/` | PostgreSQL backup files (`.sql.gz`) to be restored |

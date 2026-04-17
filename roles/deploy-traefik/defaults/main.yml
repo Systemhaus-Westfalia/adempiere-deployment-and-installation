@@ -25,4 +25,4 @@ traefik_socket_uri: "{{ socket_container_name }}" # socket-proxy is the name of 
 middlewares: []
 timezone: America/El_Salvador # Edit your timezone
 servers:
-  - "http://217.216.65.47" # Change to your ip, it is better to have an internal network
+  - "http://{{ hostvars['backend']['ansible_host'] }}"

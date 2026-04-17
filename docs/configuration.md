@@ -13,30 +13,36 @@ vault_password_file = ~/.vault_pass.txt
 
 ---
 
-## Inventory (`inventories/hosts`)
+## Inventory (`inventories/hosts.yml`)
 
-```ini
-[contabo]
-<backend_ip>        # BackEnd — ADempiere application server
-<frontend_ip>       # FrontEnd — Traefik reverse proxy server
-
-[ansible-test]
-<test_ip>           # Local lab VM for testing
-
-[FrontEnd]
-<frontend_ip>
-
-[BackEnd]
-<backend_ip>
+```yaml
+all:
+  children:
+    servers:
+      hosts:
+        backend:
+          ansible_host: <backend_ip>
+        frontend:
+          ansible_host: <frontend_ip>
+    BackEnd:
+      hosts:
+        backend:
+    FrontEnd:
+      hosts:
+        frontend:
+    ansible-test:
+      hosts:
+        test:
+          ansible_host: <test_ip>
 ```
 
-> Actual IPs are set in `group_vars/all.yml` and `inventories/hosts`.
+> IPs live in `inventories/hosts.yml` — gitignored. Copy `inventories/hosts_template.yml` and fill in your values.
 
 **Which playbooks target which groups:**
 
 | Group | Used by |
 |---|---|
-| `contabo` | `serversprep.yml`, `so-updates.yml`, `serversconf.yml`, `install-docker.yml`, `deploy-vim.yml` |
+| `servers` | `serversprep.yml`, `so-updates.yml`, `serversconf.yml`, `install-docker.yml`, `deploy-vim.yml` |
 | `BackEnd` | `deploy-adempiere.yml`, `adempiere-restoredb.yml` |
 | `FrontEnd` | `deploy-traefik.yml` |
 | `localhost` | `genkey.yml` |
@@ -68,7 +74,7 @@ The transition from `root` to `<admin_user>` happens after `serversconf.yml` cre
 Role defaults are defined in `roles/<role>/defaults/main.yml`. Override any of them by setting the variable in:
 
 - `group_vars/all.yml` (applies to all hosts)
-- A host-specific file: `host_vars/<ip>.yml`
+- A host-specific block in `inventories/hosts.yml` under the relevant host
 - On the command line: `ansible-playbook deploy-adempiere.yml -e "repo_version=main"`
 
 See [variables.md](variables.md) for the full list of defaults per role.

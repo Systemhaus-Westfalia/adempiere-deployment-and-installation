@@ -34,12 +34,12 @@ To make the layer structure tangible, this subsection traces a single playbook �
 └─────────────────────┘             │  hosts: BackEnd      │             │  defaults/main.yml  │
         VARS                        │  user: adempiere_username │             │  templates/         │
 ┌─────────────────────┐  selects    │  role to execute     │             └──────────┬──────────┘
-│  inventories/hosts  │  target     │                      │                        │ ROLE
+│  inventories/hosts.yml│  target     │                      │                        │ ROLE
 │                     │             │                      │                        │
 │                     │------------>│                      │                to BackEnd VPS
 │  contains:          │             └──────────────────────┘              (see detail below)
-│  [BackEnd]          │                      PB                                     │
-│  217.216.65.47      │                                                             │
+│  BackEnd group      │                      PB                                     │
+│  <backend_ip>       │                                                             │
 └─────────────────────┘                                                             │
         INV                                                                         │
                                                                                     ▼
@@ -99,15 +99,15 @@ a different angle:
 ```
 GROUP             SERVERS
 ────────────────  ──────────────────────────────────────
-contabo           217.216.65.47 + 217.216.95.144 (both)
-BackEnd           217.216.65.47
-FrontEnd          217.216.95.144
-ansible-test      10.10.14.53
+servers           <backend_ip> + <frontend_ip> (both)
+BackEnd           <backend_ip>
+FrontEnd          <frontend_ip>
+ansible-test      <test_ip>
 ```
 
-- These are the logical server groups defined in `inventories/hosts`.  
+- These are the logical server groups defined in `inventories/hosts.yml`.  
 - Every playbook must name one of these groups in its `hosts:` line to know which servers to connect to.  
-- `contabo` covers both servers and is used for base setup tasks.  
+- `servers` covers both servers and is used for base setup tasks.  
 - `BackEnd` and `FrontEnd` are subsets used for application-level deployments.  
 - `ansible-test` is a local VM used to test playbooks safely without touching production.
 
@@ -119,15 +119,15 @@ ansible-test      10.10.14.53
 HOST GROUP                     PLAYBOOK                       ROLE
 ─────────────────────────────  ─────────────────────────────  ─────────────────────────
 localhost                      genkey.yml                 --> genkey
-contabo (both servers)         serversprep.yml            --> serversprep
+servers (both servers)         serversprep.yml            --> serversprep
                                so-updates.yml             --> so-updates
                                serversconf.yml            --> serversconf
                                install-docker.yml         --> install-docker
                                deploy-vim.yml             --> deploy-vim
-BackEnd  (217.216.65.47)       deploy-adempiere.yml       --> deploy-adempiere
+BackEnd  (<backend_ip>)        deploy-adempiere.yml       --> deploy-adempiere
                                adempiere-restoredb.yml    --> adempiere-restoredb
-FrontEnd (217.216.95.144)      deploy-traefik.yml         --> deploy-traefik
-ansible-test (10.10.14.53)     any playbook + --limit ansible-test
+FrontEnd (<frontend_ip>)       deploy-traefik.yml         --> deploy-traefik
+ansible-test (<test_ip>)       any playbook + --limit ansible-test
 ```
 
 This is the core mapping of the project.  
@@ -211,7 +211,7 @@ The table shows which components are actively used per role.
 
 ## 3. serversconf — Internal Task Flow
 
-`serversconf` is the most complex role. It runs on both servers (group `contabo`) during initial
+`serversconf` is the most complex role. It runs on both servers (group `servers`) during initial
 setup. Tasks run in this order:
 
 ```
@@ -323,11 +323,11 @@ description of what each imported playbook does and which server it targets.
 STEP  PLAYBOOK              WHAT IT DOES                                       TARGET
 ────  ────────────────────  ─────────────────────────────────────────────────  ───────────────────
 1     genkey.yml            Generate RSA keypair                               localhost
-2     serversprep.yml       Distribute SSH public key to both servers          contabo (root)
-3     so-updates.yml        OS dist-upgrade + conditional reboot               contabo (root)
-4     serversconf.yml       Server hardening, user creation, SSH config        contabo (root)
-5     deploy-vim.yml        Vim + plugins                                      contabo (adempiere_username)
-6     install-docker.yml    Docker CE + Compose plugin                         contabo (adempiere_username)
+2     serversprep.yml       Distribute SSH public key to both servers          servers (root)
+3     so-updates.yml        OS dist-upgrade + conditional reboot               servers (root)
+4     serversconf.yml       Server hardening, user creation, SSH config        servers (root)
+5     deploy-vim.yml        Vim + plugins                                      servers (adempiere_username)
+6     install-docker.yml    Docker CE + Compose plugin                         servers (adempiere_username)
 ```
 
 > After `main.yml`, servers are hardened and Docker-ready. No application is deployed yet.
@@ -341,10 +341,10 @@ STEP  PLAYBOOK              WHAT IT DOES                                       T
 STEP  PLAYBOOK              WHAT IT DOES                                       TARGET
 ────  ────────────────────  ─────────────────────────────────────────────────  ───────────────────
 1     genkey.yml            Generate RSA keypair                               localhost
-2     serversprep.yml       Distribute SSH public key to both servers          contabo (root)
-3     so-updates.yml        OS dist-upgrade + conditional reboot               contabo (root)
-4     serversconf.yml       Server hardening, user creation, SSH config        contabo (root)
-5     install-docker.yml    Docker CE + Compose plugin                         contabo (adempiere_username)
+2     serversprep.yml       Distribute SSH public key to both servers          servers (root)
+3     so-updates.yml        OS dist-upgrade + conditional reboot               servers (root)
+4     serversconf.yml       Server hardening, user creation, SSH config        servers (root)
+5     install-docker.yml    Docker CE + Compose plugin                         servers (adempiere_username)
 6     deploy-traefik.yml    Traefik reverse proxy                              FrontEnd (adempiere_username)
 7     deploy-adempiere.yml  ADempiere + PostgreSQL container stack             BackEnd (adempiere_username)
 ```
@@ -382,11 +382,11 @@ GROUP         PLAYBOOK                   USER        PORT
 ────────────  ─────────────────────────  ──────────  ──────────────
 localhost     genkey.yml                 —           —
 ────────────────────────────────────────────────────────────────────
-contabo       serversprep.yml            root        22
+servers       serversprep.yml            root        22
               so-updates.yml             root        22
               serversconf.yml            root        22
 ────────────────────────────────────────────────────────────────────
-contabo       install-docker.yml         adempiere_username   custom_sshport
+servers       install-docker.yml         adempiere_username   custom_sshport
               deploy-vim.yml             adempiere_username   custom_sshport
 BackEnd       deploy-adempiere.yml       adempiere_username   custom_sshport
               adempiere-restoredb.yml    adempiere_username   custom_sshport

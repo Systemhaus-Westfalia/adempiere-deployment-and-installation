@@ -1,6 +1,9 @@
 # Vault — real secrets file, never commit
 group_vars/all.yml
 
+# Inventory with real IPs — operator-specific, never commit; use inventories/hosts_template.yml as reference
+inventories/hosts.yml
+
 # SSH keys — entire directory is operator-specific, never commit
 # Each operator runs genkey.yml after cloning to generate their own keypair.
 # Strongly recommended: keep the default key name (adempiere_installation_key)

@@ -8,8 +8,8 @@ if Layer 2 is broken.
 For each test: the exact command to run, the expected output, and what failure means.
 
 > Variables used throughout this guide:
-> - `<backend_ip>` — BackEnd server IP (from `inventories/hosts`)
-> - `<frontend_ip>` — FrontEnd server IP (from `inventories/hosts`)
+> - `<backend_ip>` — BackEnd server IP (from `inventories/hosts.yml`)
+> - `<frontend_ip>` — FrontEnd server IP (from `inventories/hosts.yml`)
 > - `<custom_sshport>` — custom SSH port (from `group_vars/all.yml`, default `10099`)
 > - `<admin_user>` — admin username set in `adempiere_username` (default `westfalia`)
 > - `<dns_domain>` — your domain (from `group_vars/all.yml`)
@@ -97,11 +97,11 @@ ansible-vault edit group_vars/all.yml
 ### 0.6 Inventory IPs are set
 
 ```bash
-cat inventories/hosts
+cat inventories/hosts.yml
 ```
 
-**Expected:** Real IP addresses under `[BackEnd]`, `[FrontEnd]`, and `[contabo]` — not placeholders.  
-**Failure:** Edit `inventories/hosts` and fill in the actual server IPs.
+**Expected:** Real IP addresses under `backend`, `frontend`, and `test` — not placeholders.  
+**Failure:** Copy `inventories/hosts_template.yml` to `inventories/hosts.yml` and fill in the actual server IPs.
 
 ---
 
@@ -192,10 +192,10 @@ nc -zv <frontend_ip> <custom_sshport>
 
 ```bash
 # Before serversconf (root, port 22)
-ansible contabo -m ping -e "ansible_user=root ansible_password=$(ansible-vault view group_vars/all.yml | grep root_ansible_password | awk '{print $2}')"
+ansible servers -m ping -e "ansible_user=root ansible_password=$(ansible-vault view group_vars/all.yml | grep root_ansible_password | awk '{print $2}')"
 
 # After serversconf (admin user, custom port)
-ansible contabo -m ping \
+ansible servers -m ping \
   -e "ansible_user=<admin_user> ansible_port=<custom_sshport>"
 ```
 

@@ -5,11 +5,11 @@
 | Playbook | Target | Description |
 |---|---|---|
 | `genkey.yml` | localhost | Generate RSA keypair |
-| `serversprep.yml` | contabo | Distribute SSH key |
-| `so-updates.yml` | contabo | OS update + reboot |
-| `serversconf.yml` | contabo | Server hardening |
-| `install-docker.yml` | contabo | Install Docker CE |
-| `deploy-vim.yml` | contabo | Vim + plugins |
+| `serversprep.yml` | servers | Distribute SSH key |
+| `so-updates.yml` | servers | OS update + reboot |
+| `serversconf.yml` | servers | Server hardening |
+| `install-docker.yml` | servers | Install Docker CE |
+| `deploy-vim.yml` | servers | Vim + plugins |
 | `deploy-adempiere.yml` | BackEnd | ADempiere container stack |
 | `deploy-traefik.yml` | FrontEnd | Traefik reverse proxy |
 | `adempiere-restoredb.yml` | BackEnd | PostgreSQL backup restore |
@@ -193,7 +193,7 @@ Servers reboot automatically if the kernel was updated.
 ### Scenario 7 — Test against a local VM (without touching production)
 
 ```bash
-# Limit to the ansible-test group (see inventories/hosts)
+# Limit to the ansible-test group (see inventories/hosts.yml)
 ansible-playbook serversconf.yml --limit ansible-test
 ansible-playbook deploy-adempiere.yml --limit ansible-test
 ```

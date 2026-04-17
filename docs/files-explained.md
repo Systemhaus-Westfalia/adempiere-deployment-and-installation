@@ -67,7 +67,7 @@ The private key is referenced via `ansible_ssh_private_key_file` in `group_vars/
 
 **Description:**
 
-The playbook that prepares a freshly provisioned server for all subsequent Ansible connections. It targets the `contabo` group (both BackEnd and FrontEnd) and must run before any other playbook that connects via SSH.
+The playbook that prepares a freshly provisioned server for all subsequent Ansible connections. It targets the `servers` group (both BackEnd and FrontEnd) and must run before any other playbook that connects via SSH.
 
 It does two things before invoking the role:
 
@@ -104,3 +104,73 @@ Uses `playbook_dir + '/ssh_keys/' + key_name + '.pub'` — consistent with the `
 
 **Behaviour under `--check` (dry run):**  
 `known_hosts` and `authorized_key` both support check mode and will report `changed` or `ok` without making changes. The dry run is accurate for this role.
+
+---
+
+## inventories/hosts.yml and inventories/hosts_template.yml
+
+**Names:** `hosts.yml`, `hosts_template.yml`  
+**Location:** `inventories/`
+
+**Description:**
+
+The Ansible inventory — the file that tells Ansible which servers exist, what their IP addresses are, and which groups they belong to.
+
+`hosts.yml` is **gitignored** and never committed. It contains the real IP addresses of your servers. Every operator creates their own copy after cloning:
+
+```bash
+cp inventories/hosts_template.yml inventories/hosts.yml
+# then fill in your real IPs
+```
+
+`hosts_template.yml` **is committed** to the repository. It has the same structure but uses `<placeholder>` values instead of real IPs. It is the reference and starting point for new operators.
+
+**Structure:**
+
+```yaml
+all:
+  children:
+    servers:
+      hosts:
+        backend:
+          ansible_host: <backend_ip>
+        frontend:
+          ansible_host: <frontend_ip>
+    BackEnd:
+      hosts:
+        backend:
+    FrontEnd:
+      hosts:
+        frontend:
+    ansible-test:
+      hosts:
+        test:
+          ansible_host: <test_ip>
+```
+
+**Groups:**
+
+| Group | Purpose |
+|---|---|
+| `servers` | Both servers — base setup: OS hardening, Docker, SSH config |
+| `BackEnd` | ADempiere application + PostgreSQL server only |
+| `FrontEnd` | Traefik reverse proxy server only |
+| `ansible-test` | Optional local lab VM; not part of `servers` |
+
+**Why `BackEnd` and `FrontEnd` entries look empty:**
+
+```yaml
+    BackEnd:
+      hosts:
+        backend:        ← no ansible_host here
+```
+
+This is not an error. `backend` is already defined with its IP under `servers`. Listing it again under `BackEnd` without repeating `ansible_host` just adds it to a second group — Ansible merges the group memberships and the variables from both. The IP is defined once and used everywhere.
+
+**Adding a second BackEnd server:**
+
+The template includes a commented-out `backend2` block. To activate it: uncomment the block under `servers`, set the IP, and also uncomment `backend2` under `BackEnd`. No other files need to change — playbooks that target `BackEnd` will automatically include the new host.
+
+**Why IPs are here and not in `host_vars/`:**
+
+`host_vars/<hostname>.yml` is valid Ansible practice and makes sense when a host has many host-specific variables. In this project the only host-specific value is the IP address (`ansible_host`). Placing it directly in the inventory keeps everything in one file — one file to copy, one file to fill in, one file to gitignore.

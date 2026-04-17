@@ -4,7 +4,7 @@
 ## PURPOSE: Full hardening and base configuration of a freshly provisioned Linux server.
 ##
 ## CONTEXT:
-##   - Targets the 'contabo' group (both BackEnd and FrontEnd servers).
+##   - Targets the 'servers' group (both BackEnd and FrontEnd servers).
 ##   - Runs as root (become: true). Requires root password from vault (root_user_password).
 ##   - Must run AFTER serversprep.yml (SSH key distribution) and so-updates.yml (OS update).
 ##   - After this role completes, root login is disabled. All subsequent playbooks connect

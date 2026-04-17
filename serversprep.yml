@@ -1,4 +1,4 @@
-- hosts: contabo
+- hosts: servers
   become: false
   gather_facts: false
 

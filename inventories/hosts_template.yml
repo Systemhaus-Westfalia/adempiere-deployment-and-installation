@@ -1,0 +1,42 @@
+#SPDX-License-Identifier: MIT-0
+---
+# Ansible inventory template.
+#
+# HOW TO USE:
+#   cp inventories/hosts_template.yml inventories/hosts.yml
+#   Fill in your real IP addresses.
+#   inventories/hosts.yml is gitignored — never commit it.
+#
+# Group structure:
+#   servers      — all managed servers (OS hardening, Docker, initial setup)
+#   BackEnd      — ADempiere application + database
+#   FrontEnd     — Traefik reverse proxy
+#   ansible-test — optional local lab VM for testing
+#
+# To add a second BackEnd server: uncomment the backend2 block below and set its IP.
+
+all:
+  children:
+
+    servers:
+      hosts:
+        backend:
+          ansible_host: <backend_ip>    # e.g. 203.0.113.10
+        # backend2:
+        #   ansible_host: <second_backend_ip>   # e.g. 203.0.113.11
+        frontend:
+          ansible_host: <frontend_ip>   # e.g. 203.0.113.20
+
+    BackEnd:
+      hosts:
+        backend:
+        # backend2:    # uncomment when adding a second BackEnd server
+
+    FrontEnd:
+      hosts:
+        frontend:
+
+    ansible-test:
+      hosts:
+        test:
+          ansible_host: <test_ip>   # e.g. 10.10.0.5

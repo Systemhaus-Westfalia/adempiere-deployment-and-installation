@@ -59,7 +59,7 @@ Idempotent — skips key generation if `ssh_keys/adempiere_installation_key` alr
 
 ## Step 2 — Distribute SSH Key
 
-Adds the server host fingerprints to your `~/.ssh/known_hosts` and installs your public key as an authorized key for root on all `contabo` servers.
+Adds the server host fingerprints to your `~/.ssh/known_hosts` and installs your public key as an authorized key for root on all `servers` servers.
 
 ```bash
 ansible-playbook serversprep.yml
@@ -73,7 +73,7 @@ After this step you can SSH as root with your key, but Ansible still uses the va
 
 ## Step 3 — Update the OS
 
-Full `apt dist-upgrade` on all `contabo` servers. Reboots automatically if a new kernel was installed and waits up to 5 minutes for the server to come back.
+Full `apt dist-upgrade` on all `servers` servers. Reboots automatically if a new kernel was installed and waits up to 5 minutes for the server to come back.
 
 ```bash
 ansible-playbook so-updates.yml
