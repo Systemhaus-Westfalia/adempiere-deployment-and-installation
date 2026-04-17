@@ -1,11 +1,37 @@
 # Testing & Debugging Guide
 
-This guide lets you verify a deployment from scratch, or isolate exactly where a failure occurred.
-Tests are ordered **bottom-up**: start at Stage 1 (your local machine) and work upward to Stage 6
-(the running application). Each stage depends on the one below it — there is no point testing Stage 4
-if Stage 3 is broken.
+Diagnostic reference — use this when something is not working as expected.  
+Jump to the section that matches your failure.
 
-For each test: the exact command to run, the expected output, and what failure means.
+For a step-by-step deployment with built-in verification, see [getting-started.md](getting-started.md).  
+For pre-flight checks before first deployment, see the **Pre-flight check** section in [getting-started.md](getting-started.md).
+
+---
+
+## Quick diagnostic index
+
+| Symptom | Section |
+|---|---|
+| Can't reach server (ping fails) | [SSH / Network](#ssh--network) |
+| SSH connection refused | [SSH / Network](#ssh--network) |
+| Ansible ping fails | [SSH / Network](#ssh--network) |
+| SSH still on port 22 after serversconf | [OS Configuration](#os-configuration) |
+| Root login still enabled | [OS Configuration](#os-configuration) |
+| Admin user missing or no sudo | [OS Configuration](#os-configuration) |
+| unattended-upgrades not running | [OS Configuration](#os-configuration) |
+| Docker not installed or not running | [Docker](#docker) |
+| ADempiere containers not running | [ADempiere — BackEnd](#adempiere--backend) |
+| ADempiere application errors | [ADempiere — BackEnd](#adempiere--backend) |
+| PostgreSQL not accepting connections | [ADempiere — BackEnd](#adempiere--backend) |
+| Traefik or socket-proxy not running | [Traefik — FrontEnd](#traefik--frontend) |
+| Certificate errors in Traefik logs | [Traefik — FrontEnd](#traefik--frontend) |
+| Traefik not listening on 80/443 | [Traefik — FrontEnd](#traefik--frontend) |
+| FrontEnd can't reach BackEnd | [Integration](#integration) |
+| Traefik dashboard shows service unhealthy | [Integration](#integration) |
+| DNS not resolving to FrontEnd IP | [Integration](#integration) |
+| TLS certificate missing or invalid | [End-to-End](#end-to-end) |
+| Login page not loading | [End-to-End](#end-to-end) |
+| Login fails | [End-to-End](#end-to-end) |
 
 > Variables used throughout this guide:
 > - `<backend_ip>` — BackEnd server IP (from `inventories/hosts.yml`)
@@ -16,258 +42,114 @@ For each test: the exact command to run, the expected output, and what failure m
 
 ---
 
-## Stage 1 — Control Node / Local Prerequisites
+## SSH / Network
 
-These tests run entirely on your local machine before touching any server.
-
----
-
-### 1.1 Ansible is installed and meets the minimum version
-
-```bash
-ansible --version
-```
-
-**Expected:** `ansible [core 2.14]` or higher.  
-**Failure:** Install or upgrade Ansible — see [requirements.md](requirements.md).
-
----
-
-### 1.2 Required Ansible collections are installed
-
-```bash
-ansible-galaxy collection list | grep -E 'community\.(docker|postgresql|crypto)'
-```
-
-**Expected:** Three lines, one for each collection.  
-**Failure:** Install missing collections:
-```bash
-ansible-galaxy collection install community.docker community.postgresql community.crypto
-```
-
----
-
-### 1.3 Vault password file exists and has correct permissions
-
-```bash
-ls -la ~/.vault_pass.txt
-```
-
-**Expected:** File exists, permissions are `-rw-------` (mode `0600`).  
-**Failure:** Create the file and restrict permissions:
-```bash
-echo "YourVaultPassword" > ~/.vault_pass.txt
-chmod 600 ~/.vault_pass.txt
-```
-
----
-
-### 1.4 Vault file decrypts correctly
-
-```bash
-ansible-vault view group_vars/all.yml
-```
-
-**Expected:** Plaintext YAML showing variable names and values.  
-**Failure:** Wrong vault password, or `group_vars/all.yml` does not exist.
-- If the file is missing: copy and fill in `group_vars/all_template.yml`, then encrypt it.
-- If the password is wrong: check `~/.vault_pass.txt` contents.
-
----
-
-### 1.5 All required vault variables are present
-
-After running 1.4, verify these keys appear in the output:
-
-| Variable | Used by |
-|---|---|
-| `root_user_password` | `serversprep.yml`, `serversconf.yml`, `so-updates.yml` |
-| `adempiere_username` | all post-hardening playbooks |
-| `adempiere_user_password` | `deploy-adempiere.yml`, `deploy-traefik.yml`, `install-docker.yml` |
-| `adempiere_user_become_pass` | same playbooks as above |
-| `custom_sshport` | All post-hardening playbooks |
-
-**Failure:** Variable is missing — edit the vault and add it:
-```bash
-ansible-vault edit group_vars/all.yml
-```
-
----
-
-### 1.6 Inventory IPs are set
-
-```bash
-cat inventories/hosts.yml
-```
-
-**Expected:** Real IP addresses under `backend`, `frontend`, and `test` — not placeholders.  
-**Failure:** Copy `inventories/hosts_template.yml` to `inventories/hosts.yml` and fill in the actual server IPs.
-
----
-
-### 1.7 SSH keypair exists inside the project
-
-```bash
-ls -la ssh_keys/adempiere_installation_key ssh_keys/adempiere_installation_key.pub
-```
-
-**Expected:** Both files exist; the private key has mode `0600` or `0640`.  
-**Failure:** Generate the keypair:
-```bash
-ansible-playbook genkey.yml
-```
-
----
-
-### 1.8 Syntax check passes for all playbooks
-
-```bash
-ansible-playbook main.yml --syntax-check
-ansible-playbook main-w-traefik.yml --syntax-check
-ansible-playbook deploy-adempiere.yml --syntax-check
-ansible-playbook deploy-traefik.yml --syntax-check
-```
-
-**Expected:** `playbook: <name>` with no errors.  
-**Failure:** Syntax error — read the error message, it points to the exact file and line number.
-
----
-
-## Stage 2 — Network / SSH Connectivity
-
-These tests verify that the servers are reachable from your control node.
-
----
-
-### 2.1 Control node can ping BackEnd
+### Server is not pingable
 
 ```bash
 ping -c 3 <backend_ip>
-```
-
-**Expected:** 3 replies with low latency.  
-**Failure:** Routing or firewall problem at the hosting provider level.
-
----
-
-### 2.2 Control node can ping FrontEnd
-
-```bash
 ping -c 3 <frontend_ip>
 ```
 
-**Expected:** 3 replies with low latency.  
-**Failure:** Same as 2.1.
+**Failure:** Routing or firewall problem at the hosting provider. Check the security group rules.
 
 ---
 
-### 2.3 SSH on port 22 is reachable (before serversconf.yml)
-
-Only relevant before `serversconf.yml` has run — i.e. on a freshly provisioned server.
+### SSH not reachable on port 22 (before serversconf.yml)
 
 ```bash
 nc -zv <backend_ip> 22
 nc -zv <frontend_ip> 22
 ```
 
-**Expected:** `Connection to <ip> 22 port [tcp/ssh] succeeded!`  
 **Failure:** Server not yet provisioned, or hosting provider firewall blocks port 22.
 
 ---
 
-### 2.4 SSH on custom port is reachable (after serversconf.yml)
+### SSH not reachable on custom port (after serversconf.yml)
 
 ```bash
 nc -zv <backend_ip> <custom_sshport>
 nc -zv <frontend_ip> <custom_sshport>
 ```
 
-**Expected:** `Connection to <ip> <port> port [tcp/*] succeeded!`  
-**Failure:** `serversconf.yml` has not run yet, or the hosting provider's firewall does not allow
-`<custom_sshport>`. Check the hosting provider's security group settings.
+**Failure:** `serversconf.yml` has not run yet, or the hosting provider's firewall does not allow `<custom_sshport>`. Check the security group settings.
 
 ---
 
-### 2.5 Ansible ping succeeds for all groups
+### Ansible ping fails
 
 ```bash
 # Before serversconf (root, port 22)
-ansible servers -m ping -e "ansible_user=root ansible_password=$(ansible-vault view group_vars/all.yml | grep root_ansible_password | awk '{print $2}')"
+ansible servers -m ping -e "ansible_user=root ansible_password=$(ansible-vault view group_vars/all.yml | grep root_user_password | awk '{print $2}')"
 
 # After serversconf (admin user, custom port)
-ansible servers -m ping \
-  -e "ansible_user=<admin_user> ansible_port=<custom_sshport>"
+ansible servers -m ping -e "ansible_user=<admin_user> ansible_port=<custom_sshport>"
 ```
 
-**Expected:** `pong` for every host.  
-**Failure:** Check SSH connectivity (2.3/2.4), vault credentials (1.4/1.5), and known_hosts
-(run `serversprep.yml` if host fingerprints are missing).
+**Failure:** Check connectivity above, vault credentials, and known_hosts (run `serversprep.yml` if host fingerprints are missing).
 
 ---
 
-## Stage 3 — OS Configuration
+## OS Configuration
 
-SSH to each server and verify that `serversconf.yml` applied correctly.
+SSH to the server first:
 
 ```bash
 ssh <admin_user>@<backend_ip> -p <custom_sshport>
 ssh <admin_user>@<frontend_ip> -p <custom_sshport>
 ```
 
-Run the following checks on **both** servers unless noted.
+Run the checks below on **both** servers unless noted.
 
 ---
 
-### 3.1 SSH is listening on the custom port (not 22)
+### SSH still on port 22 / hardening did not apply
 
 ```bash
 ss -tlnp | grep sshd
 ```
 
-**Expected:** `*:<custom_sshport>` in the output. Port 22 should not appear.  
+**Expected:** `*:<custom_sshport>`. Port 22 should not appear.  
 **Failure:** `serversconf.yml` did not complete — re-run it.
 
 ---
 
-### 3.2 Root login is disabled
+### Root login still enabled
 
 ```bash
 grep PermitRootLogin /etc/ssh/sshd_config
 ```
 
 **Expected:** `PermitRootLogin no`  
-**Failure:** SSH hardening task did not apply. Re-run `serversconf.yml`.
+**Failure:** Re-run `serversconf.yml`.
 
 ---
 
-### 3.3 Password authentication is disabled
+### Password authentication still enabled
 
 ```bash
 grep PasswordAuthentication /etc/ssh/sshd_config
 ```
 
 **Expected:** `PasswordAuthentication no`  
-**Failure:** Same as 3.2.
+**Failure:** Re-run `serversconf.yml`.
 
 ---
 
-### 3.4 Admin user exists and has sudo
+### Admin user missing or no sudo
 
 ```bash
 id <admin_user>
 sudo -l -U <admin_user>
 ```
 
-**Expected:**
-- `id` shows the user with `sudo` in the groups list.
-- `sudo -l` shows `(ALL) NOPASSWD: ALL`.
-
-**Failure:** User was not created — check `username` and `your_password` in the vault, then
-re-run `serversconf.yml`.
+**Expected:** User exists with `sudo` in groups; `sudo -l` shows `(ALL) NOPASSWD: ALL`.  
+**Failure:** Check `adempiere_username` and `adempiere_user_password` in the vault, then re-run `serversconf.yml`.
 
 ---
 
-### 3.5 unattended-upgrades is active
+### unattended-upgrades not running
 
 ```bash
 systemctl is-active unattended-upgrades
@@ -279,7 +161,9 @@ cat /etc/apt/apt.conf.d/02periodic
 
 ---
 
-### 3.6 Docker is installed and running
+## Docker
+
+### Docker not installed or not running
 
 ```bash
 docker --version
@@ -291,27 +175,24 @@ systemctl is-active docker
 
 ---
 
-## Stage 4 — Services (per server)
-
-### BackEnd server
+## ADempiere — BackEnd
 
 SSH to the BackEnd: `ssh <admin_user>@<backend_ip> -p <custom_sshport>`
 
 ---
 
-#### 4.1 ADempiere containers are running
+### Containers not running
 
 ```bash
 docker ps
 ```
 
-**Expected:** At least the `adempiere-ui-gateway` container in `Up` state. Typically several
-containers from the Compose stack (ADempiere, PostgreSQL, etc.).  
-**Failure:** Run `deploy-adempiere.yml`. If it was already run, check logs (4.3).
+**Expected:** At least the `adempiere-ui-gateway` container in `Up` state.  
+**Failure:** Run `deploy-adempiere.yml`. If it was already run, check logs below.
 
 ---
 
-#### 4.2 Status files confirm successful deployment
+### Status files missing — deployment did not complete
 
 ```bash
 cat /opt/development/git_status.txt
@@ -321,27 +202,25 @@ cat /opt/development/script_status.txt
 **Expected:** `cloned` and `runned` respectively.  
 **Failure:**
 - Missing `git_status.txt` → git clone did not complete. Re-run `deploy-adempiere.yml`.
-- Missing `script_status.txt` → Compose stack did not start. Check logs in 4.3.
+- Missing `script_status.txt` → Compose stack did not start. Check container logs below.
 
 ---
 
-#### 4.3 ADempiere container logs are clean
+### Application errors in container logs
 
 ```bash
 docker logs adempiere-ui-gateway --tail 50
 ```
 
-**Expected:** No `ERROR` or `Exception` entries. Application startup messages ending with the
-server being ready.  
+**Expected:** No `ERROR` or `Exception` entries. Application startup messages ending with the server being ready.  
 **Failure:** See [troubleshooting.md](troubleshooting.md) for common ADempiere startup errors.
 
 ---
 
-#### 4.4 PostgreSQL is accepting connections
+### PostgreSQL not accepting connections
 
 ```bash
-docker exec -it adempiere-ui-gateway bash -c "pg_isready -h localhost -p 5432" 2>/dev/null || \
-  docker ps --format '{{.Names}}' | grep -i postgres | xargs -I{} docker exec {} pg_isready -h localhost
+docker ps --format '{{.Names}}' | grep -i postgres | xargs -I{} docker exec {} pg_isready -h localhost
 ```
 
 **Expected:** `localhost:5432 - accepting connections`  
@@ -353,13 +232,13 @@ docker logs <postgres-container-name> --tail 30
 
 ---
 
-### FrontEnd server
+## Traefik — FrontEnd
 
 SSH to the FrontEnd: `ssh <admin_user>@<frontend_ip> -p <custom_sshport>`
 
 ---
 
-#### 4.5 Traefik and socket-proxy containers are running
+### Traefik or socket-proxy not running
 
 ```bash
 docker ps
@@ -370,39 +249,34 @@ docker ps
 
 ---
 
-#### 4.6 Traefik logs are clean
+### Certificate errors in Traefik logs
 
 ```bash
 docker logs traefik --tail 50
 tail -20 /docker/traefik/logs/traefik.log
 ```
 
-**Expected:** No `error` entries. Certificate-related messages should show `certificate obtained`
-or `using cached certificate`.  
+**Expected:** No `error` entries. Certificate messages should show `certificate obtained` or `using cached certificate`.  
 **Failure:**
-- Certificate errors → DNS record not pointing to FrontEnd IP, or Cloudflare API token invalid.
+- Certificate errors → DNS record not pointing to FrontEnd IP, or Cloudflare API token invalid. Check `roles/deploy-traefik/vars/main.yml`.
 - Routing errors → check `app-adempiere.yaml` in `/docker/traefik/config/`.
 
 ---
 
-#### 4.7 Traefik is listening on ports 80 and 443
+### Traefik not listening on ports 80 and 443
 
 ```bash
 ss -tlnp | grep -E ':80|:443'
 ```
 
 **Expected:** Traefik listed on both ports.  
-**Failure:** Traefik container not running (see 4.5).
+**Failure:** Traefik container not running — see above.
 
 ---
 
-## Stage 5 — Integration (inter-server)
+## Integration
 
-These tests verify that the FrontEnd can reach the BackEnd, and that Traefik routing is working.
-
----
-
-### 5.1 FrontEnd can reach BackEnd on the ADempiere port
+### FrontEnd can't reach BackEnd
 
 SSH to FrontEnd, then:
 
@@ -410,39 +284,26 @@ SSH to FrontEnd, then:
 curl -s -o /dev/null -w "%{http_code}" http://<backend_ip>:<adempiere_port>/
 ```
 
-Where `<adempiere_port>` is the ADempiere application port (check
-`roles/deploy-adempiere/defaults/main.yml` or the Compose file for the exposed port).
-
-**Expected:** HTTP response code (e.g. `200`, `302`, `401`) — any response means connectivity works.  
-**Failure:** No route to host or connection refused → hosting provider firewall between the two
-servers, or ADempiere is not running on BackEnd.
+**Expected:** Any HTTP response code (`200`, `302`, `401`) — any response means connectivity works.  
+**Failure:** No route to host or connection refused → hosting provider firewall between the two servers, or ADempiere is not running on BackEnd.
 
 ---
 
-### 5.2 Traefik dashboard shows BackEnd as healthy
+### Traefik dashboard shows service as unhealthy
 
-Open in a browser (or use curl from your local machine):
-
-```
+```bash
+# Open in browser
 http://<frontend_ip>:28080
 ```
 
-or if DNS is set up:
-
-```
-http://traefik.<dns_domain>:28080
-```
-
-**Expected:** Traefik dashboard loads. Under **Services**, `adempiere-ui-gateway` shows as green/healthy.  
+**Expected:** Dashboard loads; `adempiere-ui-gateway` shows as green/healthy.  
 **Failure:**
-- Dashboard does not load → Traefik not running (4.5), or port 28080 blocked by firewall.
-- Service shows as unhealthy → BackEnd is unreachable from FrontEnd (see 5.1).
+- Dashboard does not load → Traefik not running, or port 28080 blocked by firewall.
+- Service unhealthy → BackEnd unreachable from FrontEnd (see above).
 
 ---
 
-### 5.3 DNS resolves to the FrontEnd IP
-
-From your local machine:
+### DNS not resolving to FrontEnd IP
 
 ```bash
 dig adempiere.<dns_domain> +short
@@ -453,11 +314,9 @@ dig adempiere.<dns_domain> +short
 
 ---
 
-## Stage 6 — End-to-End (Application)
+## End-to-End
 
----
-
-### 6.1 TLS certificate is valid
+### TLS certificate missing or invalid
 
 ```bash
 curl -sv https://adempiere.<dns_domain> 2>&1 | grep -E "subject:|issuer:|expire"
@@ -465,48 +324,28 @@ curl -sv https://adempiere.<dns_domain> 2>&1 | grep -E "subject:|issuer:|expire"
 
 **Expected:** Certificate issued by `Let's Encrypt`, not expired.  
 **Failure:**
-- Self-signed or missing → Traefik has not yet obtained the certificate. Check Traefik logs (4.6).
-- Cloudflare DNS challenge failed → verify API token in `roles/deploy-traefik/vars/main.yml`.
+- Self-signed or missing → Traefik has not yet obtained the certificate. Check Traefik logs above.
+- DNS challenge failed → verify Cloudflare API token in `roles/deploy-traefik/vars/main.yml`.
 
 ---
 
-### 6.2 ADempiere login page loads over HTTPS
+### Login page not loading
 
 ```bash
 curl -s -o /dev/null -w "%{http_code}" https://adempiere.<dns_domain>
 ```
 
 **Expected:** `200` or `302`.  
-In a browser: the ADempiere login page loads without certificate warnings.  
-**Failure:** See 6.1 for certificate issues, or 5.1/5.2 for routing issues.
+**Failure:** See TLS certificate section above, or integration section for routing issues.
 
 ---
 
-### 6.3 ADempiere login succeeds
+### Login fails
 
-Open `https://adempiere.<dns_domain>` in a browser and log in with the ADempiere admin credentials.
+Open `https://adempiere.<dns_domain>` in a browser and attempt login.
 
 **Expected:** Dashboard loads after login.  
-**Failure:** Application error, database not ready, or wrong credentials. Check ADempiere logs (4.3).
-
----
-
-## Quick Reference — Full Test Sequence
-
-Run this sequence in order when testing a fresh deployment:
-
-```
-1.1 → 1.2 → 1.3 → 1.4 → 1.5 → 1.6 → 1.7 → 1.8   (control node)
-2.1 → 2.2 → 2.4 → 2.5                              (connectivity)
-3.1 → 3.2 → 3.3 → 3.4 → 3.5 → 3.6                 (OS config — both servers)
-4.1 → 4.2 → 4.3 → 4.4                              (BackEnd services)
-4.5 → 4.6 → 4.7                                    (FrontEnd services)
-5.1 → 5.2 → 5.3                                    (integration)
-6.1 → 6.2 → 6.3                                    (end-to-end)
-```
-
-If any test fails, fix it before continuing to the next layer. For remediation steps, see
-[troubleshooting.md](troubleshooting.md).
+**Failure:** Application error, database not ready, or wrong credentials. Check ADempiere container logs above.
 
 ---
 

@@ -11,16 +11,16 @@ Before running anything, work through:
 
 ## Deployment Phases
 
-The deployment is split into four phases.  
-Phases 1 and 2 cover the BackEnd; phases 3 and 4 cover the FrontEnd.   
-Within each server, a dry run (`--check`) comes first so you can verify configuration before making any real changes.
-
 | Phase | Target | Mode | Purpose |
 |---|---|---|---|
+| **0** | local | — | One-time control-node setup + pre-flight checks |
 | **1** | BackEnd | `--check` | Dry run — validate configuration, catch errors early |
 | **2** | BackEnd | real | Bring up ADempiere + PostgreSQL; verify directly on BackEnd IP |
 | **3** | FrontEnd | `--check` | Dry run — validate Traefik configuration |
 | **4** | FrontEnd | real | Bring up Traefik; full system reachable via domain + HTTPS |
+
+Phases 1 and 2 cover the BackEnd; phases 3 and 4 cover the FrontEnd.  
+Within each server, a dry run (`--check`) comes first so you can verify configuration before making any real changes.
 
 Traefik is infrastructure: once running on the FrontEnd it stays there, routing traffic and renewing certificates automatically.   
 You do not reinstall it when you update ADempiere.
@@ -32,7 +32,7 @@ You do not reinstall it when you update ADempiere.
 
 ---
 
-## One-time control-node setup
+## Phase 0 — One-time setup & pre-flight
 
 Run these once on your **local machine** before any playbook. Nothing is sent to the servers yet.
 
@@ -56,23 +56,48 @@ ansible-vault edit group_vars/all.yml
 
 See [vault.md](vault.md) for the full list of required variables.
 
-### Step 0 — Generate your SSH keypair (mandatory, do this first)
-
-> **This step is required before running any other playbook.**  
-> The repository does not include SSH keys — each operator generates their own after cloning.  
-> All project references use the default key name `adempiere_installation_key`.  
-> **Strongly recommended:** keep this name. Changing it requires updating `ansible_ssh_private_key_file` in `group_vars/all.yml` and the `key_name` default in `roles/genkey/defaults/main.yml`.
-
 ```bash
+# Generate SSH keypair — required before any other playbook.
+# The repository does not include SSH keys; each operator generates their own after cloning.
+# Idempotent — safe to re-run; skips generation if the keypair already exists.
 ansible-playbook genkey.yml
 ```
+
+> **Strongly recommended:** keep the default key name `adempiere_installation_key`.  
+> Changing it requires updating `ansible_ssh_private_key_file` in `group_vars/all.yml` and `key_name` in `roles/genkey/defaults/main.yml`.
 
 This creates:
 - `ssh_keys/adempiere_installation_key` — private key (gitignored, never commit)
 - `ssh_keys/adempiere_installation_key.pub` — public key (gitignored)
 - `roles/serversconf/files/public_keys/present/admin/adempiere_installation_key.pub` — copy deployed to servers by `serversconf` (gitignored)
 
-Idempotent — safe to re-run; skips generation if the keypair already exists.
+Then verify everything is in place before proceeding:
+
+```bash
+# Ansible version — expect core 2.14+
+ansible --version
+
+# Required collections — expect 3 lines
+ansible-galaxy collection list | grep -E 'community\.(docker|postgresql|crypto)'
+
+# Vault password file — expect mode 0600
+ls -la ~/.vault_pass.txt
+
+# Vault decrypts and contains all required variables
+ansible-vault view group_vars/all.yml | grep -E 'root_user_password|adempiere_username|adempiere_user_password|adempiere_user_become_pass|custom_sshport'
+
+# Inventory has real IPs — no placeholders
+cat inventories/hosts.yml
+
+# SSH keypair exists
+ls ssh_keys/adempiere_installation_key ssh_keys/adempiere_installation_key.pub
+
+# Syntax check — no errors, no warnings
+ansible-playbook main.yml --syntax-check
+ansible-playbook main-w-traefik.yml --syntax-check
+```
+
+For a detailed explanation of each check, see [testing.md](testing.md).
 
 ---
 
@@ -104,11 +129,32 @@ ansible-playbook deploy-adempiere.yml                # Deploy ADempiere + Postgr
 
 After this phase ADempiere is reachable directly at `http://<backend_ip>:<adempiere_port>` — no domain, no TLS. Use this to verify the application is running before touching the FrontEnd.
 
+### Verify — BackEnd
+
+```bash
+# SSH port reachable (from your local machine)
+nc -zv <backend_ip> <custom_sshport>
+
+# SSH to BackEnd
+ssh <admin_user>@<backend_ip> -p <custom_sshport>
+```
+
+On the BackEnd server:
+
+```bash
+docker ps                          # ADempiere containers in Up state
+systemctl is-active docker         # expect: active
+id <admin_user>                    # user exists, sudo group present
+```
+
+Open `http://<backend_ip>:<adempiere_port>` in a browser and confirm ADempiere loads before proceeding.  
+If anything is wrong, see [testing.md](testing.md) for diagnostics.
+
 ---
 
 ## Phase 3 — FrontEnd dry run
 
-> **Constraint:** The Docker playbooks (`install-docker`, `deploy-traefik`) connect as `westfalia` on the custom SSH port. For `--check` to work on those, the `adempiere_username` user must already exist on the FrontEnd. The OS playbooks are dry-run first (root, port 22); then `serversconf.yml` is run for real to create the user; then the Docker playbooks are dry-run.
+> **Constraint:** The Docker playbooks (`install-docker`, `deploy-traefik`) connect as `<admin_user>` on the custom SSH port. For `--check` to work on those, the `adempiere_username` user must already exist on the FrontEnd. The OS playbooks are dry-run first (root, port 22); then `serversconf.yml` is run for real to create the user; then the Docker playbooks are dry-run.
 
 ```bash
 # OS playbooks — accurate --check, connects as root on port 22
@@ -142,13 +188,30 @@ After this phase the full system is reachable:
 
 TLS certificate is issued automatically on the first HTTPS request via Let's Encrypt + Cloudflare DNS.
 
+### Verify — Full system
+
+```bash
+# DNS resolves to FrontEnd IP
+dig adempiere.<dns_domain> +short
+
+# TLS certificate is valid and from Let's Encrypt
+curl -sv https://adempiere.<dns_domain> 2>&1 | grep "issuer:"
+
+# Application responds
+curl -s -o /dev/null -w "%{http_code}" https://adempiere.<dns_domain>
+```
+
+Expected: DNS returns `<frontend_ip>`, certificate issued by Let's Encrypt, HTTP status `200` or `302`.  
+Open `https://adempiere.<dns_domain>` in a browser and confirm the login page loads.  
+If anything is wrong, see [testing.md](testing.md) for diagnostics.
+
 ---
 
 ## Duration reference
 
 | Playbook | Target | Duration | Notes |
 |---|---|---|---|
-| `genkey.yml` | localhost | seconds | Skipped if `~/.ssh/id_rsa` already exists |
+| `genkey.yml` | localhost | seconds | Skipped if `ssh_keys/adempiere_installation_key` already exists |
 | `serversprep.yml` | per server | seconds | Needs root password in vault and port 22 open |
 | `so-updates.yml` | per server | 5–15 min | May reboot; waits automatically for server to return |
 | `serversconf.yml` | per server | 2–5 min | After this, root login is disabled and SSH port changes |
