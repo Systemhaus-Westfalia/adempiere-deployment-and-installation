@@ -5,10 +5,10 @@
   pre_tasks:
     - name: Assign user for role
       ansible.builtin.set_fact:
-        ansible_user: "westfalia"
+        ansible_user: "{{ adempiere_username }}"
         # Esto hará que Ansible use las variables de tu Vault automáticamente
-        ansible_password: "{{ westfaila_ansible_password }}" 
-        ansible_become_password: "{{ westfalia_ansible_become_pass }}" # if user is a sudoer and not root use uncomment
+        ansible_password: "{{ adempiere_user_password }}"
+        ansible_become_password: "{{ adempiere_user_become_pass }}"
         ansible_port: "{{ custom_sshport }}"
   roles:
     - deploy-vim

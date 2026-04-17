@@ -74,9 +74,9 @@ ansible-playbook deploy-traefik.yml -e "traefik_log_level=INFO"
 # Ping all hosts
 ansible all -m ping
 
-# Ping only BackEnd (after serversconf — westfalia user, custom port)
+# Ping only BackEnd (after serversconf — adempiere_username user, custom port)
 ansible BackEnd -m ping \
-  -e "ansible_user=westfalia ansible_port=<custom_sshport>"
+  -e "ansible_user=<adempiere_username> ansible_port=<custom_sshport>"
 
 # Gather facts from a host
 ansible <backend_ip> -m setup

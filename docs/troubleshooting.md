@@ -6,7 +6,7 @@
 
 **Why:** SSH port has changed to `custom_sshport` and root login is now disabled.
 
-**Fix:** All post-hardening playbooks use `westfalia` + `custom_sshport` automatically (set via `set_fact` in `pre_tasks`). For manual SSH access:
+**Fix:** All post-hardening playbooks use `adempiere_username` + `custom_sshport` automatically (set via `set_fact` in `pre_tasks`). For manual SSH access:
 ```bash
 ssh <admin_user>@<server-ip> -p <custom_sshport>
 ```

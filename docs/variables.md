@@ -6,11 +6,11 @@ These must be set manually via `ansible-vault edit group_vars/all.yml`.
 
 | Variable | Used in | Description |
 |---|---|---|
-| `root_ansible_password` | `serversprep.yml`, `serversconf.yml`, `so-updates.yml` | Root password for initial server access (before SSH key-based auth is configured) |
-| `username` | `serversconf` role | Name of the non-root system user to create (e.g. `westfalia`) |
-| `your_password` | `serversconf` role | SHA-512 hashed password for the user (`mkpasswd --method=sha-512`) |
-| `westfaila_ansible_password` | `deploy-adempiere.yml`, `deploy-traefik.yml`, `adempiere-restoredb.yml` | Password for the `westfalia` user *(note: variable name is misspelled — the vault key must match exactly)* |
-| `westfalia_ansible_become_pass` | `deploy-adempiere.yml`, `deploy-traefik.yml`, `adempiere-restoredb.yml` | Sudo password for the `westfalia` user |
+| `root_user_password` | `serversprep.yml`, `serversconf.yml`, `so-updates.yml` | Root password for initial server access (before SSH key-based auth is configured) |
+| `adempiere_username` | all post-hardening playbooks, `serversconf` role | Name of the non-root system user created on every server (e.g. `westfalia`). Used as SSH login user and file owner. Personalise to any username you prefer — must match on both BackEnd and FrontEnd. |
+| `your_password` | `serversconf` role | SHA-512 hashed password for `adempiere_username` (`mkpasswd --method=sha-512`) |
+| `adempiere_user_password` | `install-docker.yml`, `deploy-adempiere.yml`, `deploy-traefik.yml`, `deploy-vim.yml`, `adempiere-restoredb.yml` | SSH login password for the `adempiere_username` account |
+| `adempiere_user_become_pass` | same playbooks as above | Sudo password for the `adempiere_username` account |
 | `postgres_password` | `deploy-adempiere` role, `adempiere-restoredb` role | PostgreSQL superuser (`postgres`) password |
 | `adempiere_password` | `adempiere-restoredb` role | Password for the `adempiere` PostgreSQL user (falls back to `postgres_password` if not set) |
 
@@ -18,7 +18,7 @@ These must be set manually via `ansible-vault edit group_vars/all.yml`.
 
 | Variable | Used in | Description |
 |---|---|---|
-| `admin_user` | All post-hardening playbooks, `deploy-adempiere`, `adempiere-restoredb` roles | The non-root system user (e.g. `westfalia`) |
+| `admin_user` | All post-hardening playbooks, `deploy-adempiere`, `adempiere-restoredb` roles | Alias for the non-root system user — see `adempiere_username` |
 | `frontend_ip` | `deploy-traefik` role | Public IP of the FrontEnd server |
 | `backend_ip` | `deploy-traefik` role | IP of the BackEnd server (used in Traefik routing rules) |
 | `dns_domain` | `deploy-traefik` role | Base domain for routing and TLS certificates |
@@ -47,7 +47,7 @@ These must be set manually via `ansible-vault edit group_vars/all.yml`.
 | `install_path` | `/opt/development` | Base directory on the BackEnd server |
 | `repo_url` | `https://github.com/Systemhaus-Westfalia/adempiere-ui-gateway.git` | Git repository URL |
 | `repo_version` | `adempiere-trunk` | Branch or tag to deploy |
-| `be_user` | `westfalia` | File owner on the BackEnd server |
+| `be_user` | `{{ adempiere_username }}` | File owner on the BackEnd server — inherits from `adempiere_username` |
 | `postgres_external_port` | `5432` | PostgreSQL port exposed to the host |
 | `status_file` | `/opt/development/script_status.txt` | Idempotency flag for `start-all.sh` |
 | `git_status_file` | `/opt/development/git_status.txt` | Idempotency flag for git clone |

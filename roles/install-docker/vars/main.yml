@@ -1,4 +1,4 @@
 #SPDX-License-Identifier: MIT-0
 ---
 # vars file for roles/install-docker
-ansible_user: westfalia
+ansible_user: "{{ adempiere_username }}"

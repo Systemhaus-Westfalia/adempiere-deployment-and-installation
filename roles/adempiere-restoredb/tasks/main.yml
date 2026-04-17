@@ -27,8 +27,8 @@
   copy:
     src: "files/{{ backup_name }}"
     dest: "{{ remote_gz_path }}"
-    owner: westfalia
-    group: westfalia
+    owner: "{{ adempiere_username }}"
+    group: "{{ adempiere_username }}"
     mode: '0644'
   when: not backup_stat.stat.exists
 

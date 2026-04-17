@@ -7,7 +7,7 @@ adempiere_container_name: adempiere-ui-gateway
 install_path: /opt/development
 repo_url: https://github.com/Systemhaus-Westfalia/adempiere-ui-gateway.git
 repo_version: adempiere-trunk
-be_user: westfalia
+be_user: "{{ adempiere_username }}"
 postgres_external_port: 5432
 status_file: /opt/development/script_status.txt
 git_status_file: /opt/development/git_status.txt

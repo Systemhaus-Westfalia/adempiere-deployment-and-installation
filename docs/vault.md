@@ -63,15 +63,16 @@ The vault file must contain the following variables. See [variables.md](variable
 
 ```yaml
 # Initial root access (used only during the first two playbooks)
-root_ansible_password: "the-root-password-on-the-vps"
+root_user_password: "the-root-password-on-the-vps"
 
-# System user to create on the servers
-username: "westfalia"
-your_password: "$6$..."          # SHA-512 hash — see below
+# Admin username — created on every server by serversconf.yml.
+# All post-hardening playbooks connect as this user. Personalise freely.
+adempiere_username: "westfalia"   # change to your preferred username
+your_password: "$6$..."           # SHA-512 hash of the above user's password — see below
 
-# Post-hardening login credentials
-westfaila_ansible_password: "westfalia-user-password"    # note: variable name has a typo — keep as-is
-westfalia_ansible_become_pass: "westfalia-sudo-password"
+# Post-hardening SSH credentials for adempiere_username
+adempiere_user_password: "your-admin-user-password"
+adempiere_user_become_pass: "your-admin-sudo-password"
 
 # Database
 postgres_password: "strong-postgres-password"
@@ -123,7 +124,7 @@ Two role vars files are also vault-encrypted and use the **same password** as `g
 
 | File | Contains |
 |---|---|
-| `roles/serversconf/vars/main.yml` | `username`, `your_password` (SHA-512 hash), `user_path` |
+| `roles/serversconf/vars/main.yml` | `adempiere_username`, `your_password` (SHA-512 hash), `user_path` |
 | `roles/deploy-adempiere/vars/main.yml` | `postgres_password` |
 
 To view or edit them:

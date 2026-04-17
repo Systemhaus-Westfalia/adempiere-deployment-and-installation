@@ -32,7 +32,7 @@ To make the layer structure tangible, this subsection traces a single playbook �
 │  vault secrets,     │             │                      │             │  contains:          │
 │  passwords,SSH port │             │  defines:            │             │  tasks/main.yml     │
 └─────────────────────┘             │  hosts: BackEnd      │             │  defaults/main.yml  │
-        VARS                        │  user: westfalia     │             │  templates/         │
+        VARS                        │  user: adempiere_username │             │  templates/         │
 ┌─────────────────────┐  selects    │  role to execute     │             └──────────┬──────────┘
 │  inventories/hosts  │  target     │                      │                        │ ROLE
 │                     │             │                      │                        │
@@ -326,8 +326,8 @@ STEP  PLAYBOOK              WHAT IT DOES                                       T
 2     serversprep.yml       Distribute SSH public key to both servers          contabo (root)
 3     so-updates.yml        OS dist-upgrade + conditional reboot               contabo (root)
 4     serversconf.yml       Server hardening, user creation, SSH config        contabo (root)
-5     deploy-vim.yml        Vim + plugins                                      contabo (westfalia)
-6     install-docker.yml    Docker CE + Compose plugin                         contabo (westfalia)
+5     deploy-vim.yml        Vim + plugins                                      contabo (adempiere_username)
+6     install-docker.yml    Docker CE + Compose plugin                         contabo (adempiere_username)
 ```
 
 > After `main.yml`, servers are hardened and Docker-ready. No application is deployed yet.
@@ -344,9 +344,9 @@ STEP  PLAYBOOK              WHAT IT DOES                                       T
 2     serversprep.yml       Distribute SSH public key to both servers          contabo (root)
 3     so-updates.yml        OS dist-upgrade + conditional reboot               contabo (root)
 4     serversconf.yml       Server hardening, user creation, SSH config        contabo (root)
-5     install-docker.yml    Docker CE + Compose plugin                         contabo (westfalia)
-6     deploy-traefik.yml    Traefik reverse proxy                              FrontEnd (westfalia)
-7     deploy-adempiere.yml  ADempiere + PostgreSQL container stack             BackEnd (westfalia)
+5     install-docker.yml    Docker CE + Compose plugin                         contabo (adempiere_username)
+6     deploy-traefik.yml    Traefik reverse proxy                              FrontEnd (adempiere_username)
+7     deploy-adempiere.yml  ADempiere + PostgreSQL container stack             BackEnd (adempiere_username)
 ```
 
 > Traefik (step 6) is deployed before ADempiere (step 7) so the proxy is ready when ADempiere starts.
@@ -386,14 +386,14 @@ contabo       serversprep.yml            root        22
               so-updates.yml             root        22
               serversconf.yml            root        22
 ────────────────────────────────────────────────────────────────────
-contabo       install-docker.yml         westfalia   custom_sshport
-              deploy-vim.yml             westfalia   custom_sshport
-BackEnd       deploy-adempiere.yml       westfalia   custom_sshport
-              adempiere-restoredb.yml    westfalia   custom_sshport
-FrontEnd      deploy-traefik.yml         westfalia   custom_sshport
+contabo       install-docker.yml         adempiere_username   custom_sshport
+              deploy-vim.yml             adempiere_username   custom_sshport
+BackEnd       deploy-adempiere.yml       adempiere_username   custom_sshport
+              adempiere-restoredb.yml    adempiere_username   custom_sshport
+FrontEnd      deploy-traefik.yml         adempiere_username   custom_sshport
 ```
 
-> ⚠ `serversconf.yml` changes the SSH port mid-play. All playbooks that run as `westfalia` must
+> ⚠ `serversconf.yml` changes the SSH port mid-play. All playbooks that run as `adempiere_username` must
 > run AFTER `serversconf.yml` has completed — otherwise Ansible will try to connect on the new
 > port before the server has switched to it.
 

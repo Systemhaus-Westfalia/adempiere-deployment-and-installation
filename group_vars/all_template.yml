@@ -7,13 +7,24 @@
 #
 # group_vars/all.yml is gitignored — never commit it with real values.
 
+# ---------------------------------------------------------------------------
+# Admin username — the non-root system user created on every server by serversconf.yml.
+# All post-hardening playbooks (install-docker, deploy-adempiere, deploy-traefik, etc.)
+# connect as this user on the custom SSH port.
+#
+# Personalisation: change this to any username you prefer (e.g. "deploy", "admin").
+# The same name is used on BOTH BackEnd and FrontEnd servers.
+# Default used by the project author: "westfalia"
+# ---------------------------------------------------------------------------
+adempiere_username: 'your-admin-username'
+
 # Post-hardening login credentials for the admin user (used after serversconf.yml)
-# Note: variable name 'westfaila_ansible_password' has a typo — keep it as-is (see known-issues.md)
-westfaila_ansible_password: 'your-admin-user-password'
-westfalia_ansible_become_pass: "your-admin-sudo-password"
+# These are the SSH password and sudo password for the adempiere_username account above.
+adempiere_user_password: 'your-admin-user-password'
+adempiere_user_become_pass: 'your-admin-sudo-password'
 
 # Root password for initial server access (used by serversprep.yml and serversconf.yml)
-root_ansible_password: 'your-root-password'
+root_user_password: 'your-root-password'
 
 # Custom SSH port (set by serversconf.yml — must match what is already on the servers)
 custom_sshport: 10099

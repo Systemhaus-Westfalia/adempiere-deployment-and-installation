@@ -11,7 +11,7 @@ For each test: the exact command to run, the expected output, and what failure m
 > - `<backend_ip>` — BackEnd server IP (from `inventories/hosts`)
 > - `<frontend_ip>` — FrontEnd server IP (from `inventories/hosts`)
 > - `<custom_sshport>` — custom SSH port (from `group_vars/all.yml`, default `10099`)
-> - `<admin_user>` — admin username created by `serversconf.yml` (default `westfalia`)
+> - `<admin_user>` — admin username set in `adempiere_username` (default `westfalia`)
 > - `<dns_domain>` — your domain (from `group_vars/all.yml`)
 
 ---
@@ -81,9 +81,10 @@ After running 0.4, verify these keys appear in the output:
 
 | Variable | Used by |
 |---|---|
-| `root_ansible_password` | `serversprep.yml`, `serversconf.yml`, `so-updates.yml` |
-| `westfaila_ansible_password` | `deploy-adempiere.yml`, `deploy-traefik.yml` |
-| `westfalia_ansible_become_pass` | `deploy-adempiere.yml`, `deploy-traefik.yml` |
+| `root_user_password` | `serversprep.yml`, `serversconf.yml`, `so-updates.yml` |
+| `adempiere_username` | all post-hardening playbooks |
+| `adempiere_user_password` | `deploy-adempiere.yml`, `deploy-traefik.yml`, `install-docker.yml` |
+| `adempiere_user_become_pass` | same playbooks as above |
 | `custom_sshport` | All post-hardening playbooks |
 
 **Failure:** Variable is missing — edit the vault and add it:

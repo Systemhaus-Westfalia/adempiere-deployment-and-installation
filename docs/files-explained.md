@@ -41,7 +41,7 @@ Task 3 always runs. The dry run is accurate for this role.
 
 **Why this matters:**  
 `genkey.yml` must be the first playbook run in a fresh deployment.  
-Without the keypair in place, `serversconf` cannot populate `authorized_keys` and subsequent playbooks that connect as the `westfalia` user will fail authentication.
+Without the keypair in place, `serversconf` cannot populate `authorized_keys` and subsequent playbooks that connect as the `adempiere_username` user will fail authentication.
 
 **Why a dedicated key inside the project (not `~/.ssh/id_rsa`):**  
 Using the OpenSSH default `~/.ssh/id_rsa` is simpler (no configuration needed) but risky on a developer's workstation that already has an `id_rsa` for GitHub or personal SSH — `state: present` would silently reuse it.  
@@ -72,7 +72,7 @@ The playbook that prepares a freshly provisioned server for all subsequent Ansib
 It does two things before invoking the role:
 
 **pre_task 1 — Set connection credentials**  
-Sets `ansible_user: root` and `ansible_password` from the vault (`root_ansible_password`). This is how Ansible connects to a server that has not yet been hardened — root login with password on port 22.
+Sets `ansible_user: root` and `ansible_password` from the vault (`root_user_password`). This is how Ansible connects to a server that has not yet been hardened — root login with password on port 22.
 
 **pre_task 2 — Add server fingerprint to known_hosts**  
 Runs `ssh-keyscan` against the server IP and writes the result to `~/.ssh/known_hosts` on the control node (`delegate_to: localhost`). Without this, SSH would prompt "unknown host" and the playbook would hang or fail.

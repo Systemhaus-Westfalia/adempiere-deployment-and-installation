@@ -6,7 +6,7 @@
 Step 1  genkey.yml              Generate RSA keypair on the control node
 Step 2  serversprep.yml         Distribute SSH key to servers (root, password auth)
 Step 3  so-updates.yml          Full OS update + reboot if a new kernel was installed
-Step 4  serversconf.yml         Harden SSH, create user westfalia, install packages
+Step 4  serversconf.yml         Harden SSH, create user (adempiere_username), install packages
 Step 5  install-docker.yml      Install Docker CE from official repo
 Step 6  deploy-vim.yml          Install Vim + plugins  [optional]
 Step 7  deploy-adempiere.yml    Deploy ADempiere container stack  [BackEnd only]
@@ -65,7 +65,7 @@ Adds the server host fingerprints to your `~/.ssh/known_hosts` and installs your
 ansible-playbook serversprep.yml
 ```
 
-**Requires:** Root password in vault (`root_ansible_password`). Servers must be on port 22.
+**Requires:** Root password in vault (`root_user_password`). Servers must be on port 22.
 
 After this step you can SSH as root with your key, but Ansible still uses the vault password for the connection credential.
 

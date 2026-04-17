@@ -25,13 +25,6 @@ The port in `override.yml` is now `10099`. The servers were previously configure
 
 ---
 
-## 2. Typo in vault variable name — `westfaila_ansible_password`
-
-**Files:** `deploy-adempiere.yml`, `deploy-traefik.yml`, `adempiere-restoredb.yml`
-**Problem:** The variable is referenced as `westfaila_ansible_password` (extra `a`). The vault must use this exact misspelled name.
-**Fix:** Either correct the typo consistently in all three playbooks and the vault at the same time, or leave it as-is and document that the vault key must be `westfaila_ansible_password`.
-
----
 
 ## 4. `serverswap` role is empty
 

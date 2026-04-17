@@ -108,7 +108,7 @@ After this phase ADempiere is reachable directly at `http://<backend_ip>:<adempi
 
 ## Phase 3 — FrontEnd dry run
 
-> **Constraint:** The Docker playbooks (`install-docker`, `deploy-traefik`) connect as `westfalia` on the custom SSH port. For `--check` to work on those, the `westfalia` user must already exist on the FrontEnd. The OS playbooks are dry-run first (root, port 22); then `serversconf.yml` is run for real to create the user; then the Docker playbooks are dry-run.
+> **Constraint:** The Docker playbooks (`install-docker`, `deploy-traefik`) connect as `westfalia` on the custom SSH port. For `--check` to work on those, the `adempiere_username` user must already exist on the FrontEnd. The OS playbooks are dry-run first (root, port 22); then `serversconf.yml` is run for real to create the user; then the Docker playbooks are dry-run.
 
 ```bash
 # OS playbooks — accurate --check, connects as root on port 22
@@ -116,7 +116,7 @@ ansible-playbook serversprep.yml    --limit FrontEnd --check
 ansible-playbook so-updates.yml     --limit FrontEnd --check
 ansible-playbook serversconf.yml    --limit FrontEnd --check
 
-# Run serversconf for real to create the westfalia user and change the SSH port
+# Run serversconf for real to create the adempiere_username user and change the SSH port
 ansible-playbook serversprep.yml    --limit FrontEnd
 ansible-playbook so-updates.yml     --limit FrontEnd
 ansible-playbook serversconf.yml    --limit FrontEnd

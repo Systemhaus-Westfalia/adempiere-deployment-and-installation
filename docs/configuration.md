@@ -50,14 +50,14 @@ Each playbook sets the connection user in a `pre_tasks` block using `set_fact`. 
 | Playbook | User | Auth |
 |---|---|---|
 | `genkey.yml` | *(local)* | local connection — no SSH |
-| `serversprep.yml` | `root` | vault: `root_ansible_password` |
-| `so-updates.yml` | `root` | vault: `root_ansible_password` |
-| `serversconf.yml` | `root` | vault: `root_ansible_password` |
-| `install-docker.yml` | `westfalia` | vault: `westfaila_ansible_password` + `westfalia_ansible_become_pass`, custom port |
-| `deploy-vim.yml` | `westfalia` | vault: `westfaila_ansible_password` + `westfalia_ansible_become_pass`, custom port |
-| `deploy-adempiere.yml` | `westfalia` | vault: `westfaila_ansible_password` + `westfalia_ansible_become_pass`, custom port |
-| `deploy-traefik.yml` | `westfalia` | vault: `westfaila_ansible_password` + `westfalia_ansible_become_pass`, custom port |
-| `adempiere-restoredb.yml` | `westfalia` | vault: `westfaila_ansible_password` + `westfalia_ansible_become_pass`, custom port |
+| `serversprep.yml` | `root` | vault: `root_user_password` |
+| `so-updates.yml` | `root` | vault: `root_user_password` |
+| `serversconf.yml` | `root` | vault: `root_user_password` |
+| `install-docker.yml` | `adempiere_username` | vault: `adempiere_user_password` + `adempiere_user_become_pass`, custom port |
+| `deploy-vim.yml` | `adempiere_username` | vault: `adempiere_user_password` + `adempiere_user_become_pass`, custom port |
+| `deploy-adempiere.yml` | `adempiere_username` | vault: `adempiere_user_password` + `adempiere_user_become_pass`, custom port |
+| `deploy-traefik.yml` | `adempiere_username` | vault: `adempiere_user_password` + `adempiere_user_become_pass`, custom port |
+| `adempiere-restoredb.yml` | `adempiere_username` | vault: `adempiere_user_password` + `adempiere_user_become_pass`, custom port |
 
 The transition from `root` to `<admin_user>` happens after `serversconf.yml` creates the user and disables root login.
 

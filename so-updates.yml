@@ -7,7 +7,7 @@
       ansible.builtin.set_fact:
         ansible_user: "root"
         # Esto hará que Ansible use las variables de tu Vault automáticamente
-        ansible_password: "{{ root_ansible_password }}" 
+        ansible_password: "{{ root_user_password }}"
         # ansible_become_password: "{{ sudo_password_del_vault }}" # if user is a sudoer and not root use uncomment
   roles:
     - so-updates
