@@ -1,4 +1,6 @@
-# group_vars/all/ — operator-specific files, never commit; use *_template.yml as reference
+# group_vars/all/ — operator-specific files, never commit
+# Templates (group_vars/vars_template.yml and vault_template.yml) are committed but kept
+# one level up so Ansible does not auto-load them alongside the real files.
 group_vars/all/vars.yml
 group_vars/all/vault.yml
 

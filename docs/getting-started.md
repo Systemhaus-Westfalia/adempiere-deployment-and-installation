@@ -51,7 +51,9 @@ ansible-galaxy collection install community.docker community.postgresql communit
 echo "MyVaultPassword" > ~/.vault_pass.txt && chmod 600 ~/.vault_pass.txt
 
 # Populate all variables (IPs, domain, SSH port, passwords, Cloudflare token…)
-ansible-vault edit group_vars/all/vault.yml
+cp group_vars/vars_template.yml group_vars/all/vars.yml   # then fill in your values
+cp group_vars/vault_template.yml group_vars/all/vault.yml  # then fill in secrets
+ansible-vault encrypt group_vars/all/vault.yml
 ```
 
 See [vault.md](vault.md) for the full list of required variables.

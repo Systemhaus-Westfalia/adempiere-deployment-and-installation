@@ -37,8 +37,10 @@ By the end of this automation, the following will be in place:
 - The system is reachable at the domain configured in `group_vars/all/vars.yml`.
 
 Configuration is split across two gitignored files under `group_vars/all/`:
-- `vars.yml` — plain-text deployment values (domain, SSH port, username, key path). Copy from `vars_template.yml`.
-- `vault.yml` — AES-256 encrypted secrets (passwords, API tokens). Copy from `vault_template.yml` and encrypt with `ansible-vault encrypt`.
+- `vars.yml` — plain-text deployment values (SSH port, username, key path). Copy from `group_vars/vars_template.yml`.
+- `vault.yml` — AES-256 encrypted secrets (passwords, API tokens). Copy from `group_vars/vault_template.yml` and encrypt with `ansible-vault encrypt`.
+
+The templates live one level up in `group_vars/` (not inside `all/`) because Ansible auto-loads every `.yml` file it finds in `group_vars/all/` — placing templates there would cause their placeholder values to override your real credentials.
 
 The vault password must be stored in `~/.vault_pass.txt` on the control node; `ansible.cfg` references this file so Ansible decrypts the vault automatically on every run. **Change the vault password before deploying to production.** See [docs/vault.md](docs/vault.md).
 
@@ -58,9 +60,11 @@ Control Node (your local machine)
 ├── inventories/hosts            ← list of target servers, organised into named groups
 │
 ├── group_vars/                  ← variables shared across a group of hosts
-│   └── all/
-│       ├── vars.yml             ← plain-text config values (domain, SSH port, username) — gitignored
-│       └── vault.yml            ← AES-256 encrypted secrets (passwords, API tokens) — gitignored
+│   ├── vars_template.yml        ← reference template for all/vars.yml — committed
+│   ├── vault_template.yml       ← reference template for all/vault.yml — committed
+│   └── all/                     ← Ansible auto-loads every .yml file here
+│       ├── vars.yml             ← plain-text config values (SSH port, username) — gitignored
+│       └── vault.yml            ← AES-256 encrypted secrets (passwords) — gitignored
 │
 ├── Playbook  (*.yml)            ← entry point: "run these roles on these hosts"
 │   ├── hosts: <group>           ← which inventory group to target

@@ -12,20 +12,17 @@ In short: the vault is an encrypted YAML file that lives in your repository but 
 
 ## Configuration File Structure
 
-Variables are split into two gitignored files under `group_vars/all/`:
+```
+group_vars/
+├── vars_template.yml      ← committed — reference; copy to all/vars.yml and fill in your values
+├── vault_template.yml     ← committed — reference; copy to all/vault.yml, fill in secrets, then encrypt
+└── all/                   ← Ansible auto-loads every .yml file found here
+    ├── vars.yml           ← gitignored — plain-text config values (username, SSH port, key path)
+    └── vault.yml          ← gitignored — AES-256 encrypted secrets (passwords, API tokens)
+```
 
-```
-group_vars/all/
-├── vars.yml       ← plain-text config values (domain, SSH port, username, key path) — gitignored
-└── vault.yml      ← AES-256 encrypted secrets (passwords, API tokens) — gitignored
-```
-
-Templates are committed and serve as the reference for operators:
-```
-group_vars/all/
-├── vars_template.yml    ← copy to vars.yml and fill in your values
-└── vault_template.yml   ← copy to vault.yml, fill in secrets, then encrypt
-```
+**Why the templates cannot live in `group_vars/all/`:**  
+Ansible automatically loads every `.yml` file it finds in `group_vars/all/`. If the templates were placed there, their placeholder values (`your-root-password`, `your-admin-username`, etc.) would be loaded alongside the real files — and because files are loaded alphabetically, `vault_template.yml` would come after `vault.yml` and silently override all your real credentials. Keeping the templates one level up in `group_vars/` puts them completely outside Ansible's auto-load path.
 
 The vault password lives only on your local machine and is never committed to git:
 ```
@@ -55,13 +52,13 @@ chmod 600 ~/.vault_pass.txt
 
 **2. Copy the templates and fill in your values:**
 ```bash
-cp group_vars/all/vars_template.yml group_vars/all/vars.yml
-# Edit vars.yml — domain, SSH port, username, key path
+cp group_vars/vars_template.yml group_vars/all/vars.yml
+# Edit vars.yml — username, SSH port, key path
 ```
 
 **3. Create and encrypt the vault file:**
 ```bash
-cp group_vars/all/vault_template.yml group_vars/all/vault.yml
+cp group_vars/vault_template.yml group_vars/all/vault.yml
 # Edit vault.yml — passwords and API tokens
 ansible-vault encrypt group_vars/all/vault.yml
 ```

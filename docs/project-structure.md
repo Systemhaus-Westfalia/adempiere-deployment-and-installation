@@ -13,11 +13,11 @@ deployment_and_installation/
 │   └── hosts_template.yml         # Template for hosts.yml — copy this and fill in IPs
 │
 ├── group_vars/
-│   └── all/
+│   ├── vars_template.yml          # Template for all/vars.yml — committed
+│   ├── vault_template.yml         # Template for all/vault.yml — committed
+│   └── all/                       # Ansible auto-loads every .yml file in this directory
 │       ├── vars.yml               # Non-secret config values (username, port, key name) — gitignored
-│       ├── vault.yml              # AES-256 vault-encrypted secrets (passwords) — gitignored
-│       ├── vars_template.yml      # Template for vars.yml — committed
-│       └── vault_template.yml     # Template for vault.yml — committed
+│       └── vault.yml              # AES-256 vault-encrypted secrets (passwords) — gitignored
 │
 ├── ssh_keys/
 │   ├── adempiere_installation_key      # SSH private key — gitignored, never commit
@@ -90,8 +90,8 @@ roles/<role-name>/
 | File | Purpose |
 |---|---|
 | `inventories/hosts.yml` | Inventory with real server IPs — gitignored; use `hosts_template.yml` as reference |
-| `group_vars/all/vars.yml` | Non-secret config values (username, SSH port, key name) — gitignored |
-| `group_vars/all/vault.yml` | Vault-encrypted secrets (passwords) — gitignored |
+| `group_vars/all/vars.yml` | Non-secret config values (username, SSH port, key name) — gitignored; copy from `group_vars/vars_template.yml` |
+| `group_vars/all/vault.yml` | Vault-encrypted secrets (passwords) — gitignored; copy from `group_vars/vault_template.yml` |
 | `ssh_keys/adempiere_installation_key.pub` | Project SSH public key — gitignored; deployed to servers by `serversconf` |
 | `roles/serversconf/files/public_keys/present/admin/` | SSH public keys deployed to all servers as authorized admin keys; populated by `genkey.yml` |
 | `roles/adempiere-restoredb/files/` | PostgreSQL backup files (`.sql.gz`) to be restored |
