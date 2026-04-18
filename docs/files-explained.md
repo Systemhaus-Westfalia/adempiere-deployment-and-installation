@@ -203,3 +203,55 @@ The template includes a commented-out `backend2` block. To activate it: uncommen
 **Why IPs are here and not in `host_vars/`:**
 
 `host_vars/<hostname>.yml` is valid Ansible practice and makes sense when a host has many host-specific variables. In this project the only host-specific value is the IP address (`ansible_host`). Placing it directly in the inventory keeps everything in one file — one file to copy, one file to fill in, one file to gitignore.
+
+---
+
+## so-updates.yml
+
+**Name:** `so-updates.yml`  
+**Location:** project root
+
+**Description:**  
+
+- Runs a full OS dist-upgrade on the target servers and reboots if a new kernel was installed.  
+- Waits automatically for the server to come back before continuing.
+
+**Why `gather_facts: false`:**  
+
+- This playbook connects as `root` using the vault password, set via `set_fact` in `pre_tasks`.  
+- With `gather_facts: true`, Ansible would attempt to connect to collect OS facts *before* `pre_tasks` run — at that point `ansible_user` is not yet set, so the connection would use the control node's current OS user instead of root and fail.  
+- Setting `gather_facts: false` ensures `pre_tasks` run first and establish the correct connection user before any remote contact is made.  
+- The `so-updates` role does not use OS facts, so disabling fact gathering has no downside.
+
+---
+
+## serversconf.yml
+
+**Name:** `serversconf.yml`  
+**Location:** project root
+
+**Description:**  
+
+- Hardens the SSH configuration, creates the admin user (`adempiere_username`), installs base packages, configures unattended security updates, and deploys the project SSH public key to both `root` and the admin user.  
+- After this playbook runs, root login is disabled and SSH moves to the custom port — all subsequent playbooks connect as `adempiere_username` on that port.
+
+**Why `gather_facts: true` with play-level `vars:`:**  
+
+- The `serversconf` role needs OS facts: its SSH restart handler checks `ansible_facts['distribution']` to decide whether to restart `ssh.socket` (Ubuntu) or `ssh` (Debian). Facts require an SSH connection — and with `gather_facts: true`, Ansible connects to gather facts *before* `pre_tasks` run.  
+- This means `set_fact` in `pre_tasks` would be too late to set `ansible_user` for that initial connection.
+
+The solution is to set the connection variables at the play level using `vars:`:
+
+```yaml
+vars:
+  ansible_user: "root"
+  ansible_password: "{{ root_user_password }}"
+```
+
+Play-level `vars:` are evaluated before `gather_facts`, so the correct user is in place for the very first connection.
+
+**`--check` mode behaviour — "Add ADMIN ssh-keys":**  
+
+- During a dry run, the "Create user" task does not actually create the user on the server.  
+- The subsequent "Add ADMIN ssh-keys" task therefore cannot resolve the user's home directory for `adempiere_username` and reports a failure.  
+- This is suppressed with `ignore_errors: "{{ ansible_check_mode }}"` — the error is ignored only in check mode; in a real run the user exists and the task succeeds normally.

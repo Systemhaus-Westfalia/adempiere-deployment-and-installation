@@ -29,6 +29,8 @@ You do not reinstall it when you update ADempiere.
 > For OS-level playbooks (`serversprep`, `so-updates`, `serversconf`) dry-run output is accurate.  
 > For Docker playbooks (`install-docker`, `deploy-adempiere`, `deploy-traefik`) it is approximate — images are not pulled and containers are not started, so some tasks may report `changed` or `skipped` inconsistently.   
 > The main value is validating your variable configuration and Jinja2 templates.
+>
+> **Expected `--check` warning in `serversconf.yml`:** The "Add ADMIN ssh-keys" task will report a failure for `adempiere_username` followed by `...ignoring`. This is expected: in check mode the user creation task does not actually run, so the user does not exist yet when the key task runs. The error is suppressed with `ignore_errors: "{{ ansible_check_mode }}"` and does not affect real runs.
 
 ---
 

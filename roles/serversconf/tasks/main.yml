@@ -131,6 +131,7 @@
   with_nested:
     - [ 'root', '{{ adempiere_username }}' ]
     - "{{ lookup('fileglob', 'public_keys/present/admin/*.pub', wantlist=True) }}"
+  ignore_errors: "{{ ansible_check_mode }}"
 
 - name: Create unattended-upgrades configuration files
   template:

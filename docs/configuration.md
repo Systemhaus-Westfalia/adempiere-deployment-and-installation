@@ -51,19 +51,22 @@ all:
 
 ## Connection User per Playbook
 
-Each playbook sets the connection user in a `pre_tasks` block using `set_fact`. This is why you do not set `ansible_user` in the inventory.
+`ansible_user` is never set in the inventory — each playbook sets its own connection user. There are two patterns depending on whether the playbook needs `gather_facts`:
 
-| Playbook | User | Auth |
-|---|---|---|
-| `genkey.yml` | *(local)* | local connection — no SSH |
-| `serversprep.yml` | `root` | vault: `root_user_password` |
-| `so-updates.yml` | `root` | vault: `root_user_password` |
-| `serversconf.yml` | `root` | vault: `root_user_password` |
-| `install-docker.yml` | `adempiere_username` | vault: `adempiere_user_password` + `adempiere_user_become_pass`, custom port |
-| `deploy-vim.yml` | `adempiere_username` | vault: `adempiere_user_password` + `adempiere_user_become_pass`, custom port |
-| `deploy-adempiere.yml` | `adempiere_username` | vault: `adempiere_user_password` + `adempiere_user_become_pass`, custom port |
-| `deploy-traefik.yml` | `adempiere_username` | vault: `adempiere_user_password` + `adempiere_user_become_pass`, custom port |
-| `adempiere-restoredb.yml` | `adempiere_username` | vault: `adempiere_user_password` + `adempiere_user_become_pass`, custom port |
+- **`gather_facts: false` + `pre_tasks: set_fact`** — used when the role does not need OS facts. `pre_tasks` run before any SSH connection, so `set_fact` can safely set `ansible_user` first. (`serversprep.yml`, `so-updates.yml`)
+- **`gather_facts: true` + play-level `vars:`** — used when the role needs OS facts (e.g. to detect the distribution). Ansible connects to gather facts before `pre_tasks` run, so `set_fact` in `pre_tasks` would be too late. Play-level `vars:` are evaluated before gather_facts, so the correct user is in place for the initial connection. (`serversconf.yml`, `install-docker.yml`)
+
+| Playbook | User | Auth | gather_facts |
+|---|---|---|---|
+| `genkey.yml` | *(local)* | local connection — no SSH | `true` |
+| `serversprep.yml` | `root` | vault: `root_user_password` | `false` |
+| `so-updates.yml` | `root` | vault: `root_user_password` | `false` |
+| `serversconf.yml` | `root` | vault: `root_user_password` | `true` |
+| `install-docker.yml` | `adempiere_username` | vault: `adempiere_user_password` + `adempiere_user_become_pass`, custom port | `true` |
+| `deploy-vim.yml` | `adempiere_username` | vault: `adempiere_user_password` + `adempiere_user_become_pass`, custom port | `false` |
+| `deploy-adempiere.yml` | `adempiere_username` | vault: `adempiere_user_password` + `adempiere_user_become_pass`, custom port | `false` |
+| `deploy-traefik.yml` | `adempiere_username` | vault: `adempiere_user_password` + `adempiere_user_become_pass`, custom port | `false` |
+| `adempiere-restoredb.yml` | `adempiere_username` | vault: `adempiere_user_password` + `adempiere_user_become_pass`, custom port | `false` |
 
 The transition from `root` to `<admin_user>` happens after `serversconf.yml` creates the user and disables root login.
 

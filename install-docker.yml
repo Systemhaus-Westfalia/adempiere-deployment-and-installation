@@ -1,14 +1,10 @@
 - hosts: servers
   become: true
   gather_facts: true
-
-  pre_tasks:
-    - name: Assign user for role
-      ansible.builtin.set_fact:
-        ansible_user: "{{ adempiere_username }}"
-        # Esto hará que Ansible use las variables de tu Vault automáticamente
-        ansible_password: "{{ adempiere_user_password }}"
-        ansible_become_password: "{{ adempiere_user_become_pass }}"
-        ansible_port: "{{ custom_sshport }}"
+  vars:
+    ansible_user: "{{ adempiere_username }}"
+    ansible_password: "{{ adempiere_user_password }}"
+    ansible_become_password: "{{ adempiere_user_become_pass }}"
+    ansible_port: "{{ custom_sshport }}"
   roles:
     - install-docker
