@@ -21,7 +21,7 @@ deployment_and_installation/
 │
 ├── ssh_keys/
 │   ├── adempiere_installation_key      # SSH private key — gitignored, never commit
-│   └── adempiere_installation_key.pub  # SSH public key — tracked by git, deployed to servers by serversconf
+│   └── adempiere_installation_key.pub  # SSH public key — gitignored, deployed to servers by serversconf
 │
 │                                  # --- Orchestration playbooks ---
 │                                  # Chain individual playbooks into full deployment sequences.
@@ -92,7 +92,7 @@ roles/<role-name>/
 | `inventories/hosts.yml` | Inventory with real server IPs — gitignored; use `hosts_template.yml` as reference |
 | `group_vars/all/vars.yml` | Non-secret config values (username, SSH port, key name) — gitignored |
 | `group_vars/all/vault.yml` | Vault-encrypted secrets (passwords) — gitignored |
-| `ssh_keys/adempiere_installation_key.pub` | Project SSH public key — committed to git; deployed to servers by `serversconf` |
+| `ssh_keys/adempiere_installation_key.pub` | Project SSH public key — gitignored; deployed to servers by `serversconf` |
 | `roles/serversconf/files/public_keys/present/admin/` | SSH public keys deployed to all servers as authorized admin keys; populated by `genkey.yml` |
 | `roles/adempiere-restoredb/files/` | PostgreSQL backup files (`.sql.gz`) to be restored |
 | `roles/deploy-adempiere/templates/override.env.j2` | Generates the Docker Compose environment file with runtime values |

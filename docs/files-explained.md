@@ -21,7 +21,7 @@ Ensures `<project_root>/ssh_keys/` exists with mode `0700` before generating any
 Uses `community.crypto.openssh_keypair` to create the keypair at:
 ```
 ssh_keys/adempiere_installation_key        (private — gitignored)
-ssh_keys/adempiere_installation_key.pub    (public  — tracked by git)
+ssh_keys/adempiere_installation_key.pub    (public  — gitignored)
 ```
 The key name comes from the `key_name` variable (`roles/genkey/defaults/main.yml`); key size from `key_size` (default: 4096 bits).  
 `state: present` means the task is idempotent: if the keypair already exists it is left untouched — no overwrite.
@@ -56,7 +56,7 @@ The private key is referenced via `ansible_ssh_private_key_file` in `group_vars/
 | Risk of reusing wrong key | Yes — silently reuses existing `id_rsa` | No — always the right key |
 | Passphrase risk | Existing `id_rsa` may have one, breaking unattended runs | Generated without passphrase specifically for automation |
 | Key isolation | Shared across all purposes | Independent — rotate or revoke without affecting anything else |
-| Self-contained for GitHub | No | Yes — public key committed alongside the playbooks |
+| Self-contained for GitHub | No | Yes — `genkey.yml` generates the right key in the right place; new operators just run it once after cloning |
 
 ---
 

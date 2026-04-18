@@ -45,7 +45,7 @@ Complete the [Pre-Flight Checklist](installation.md#pre-flight-checklist) before
 
 ## Step 1 — Generate SSH Keypair
 
-Runs on **localhost only**. Creates the keypair at `ssh_keys/adempiere_installation_key` (private, gitignored) and `ssh_keys/adempiere_installation_key.pub` (public, tracked by git) inside the project, then copies the public key into the `serversconf` role.
+Runs on **localhost only**. Creates the keypair at `ssh_keys/adempiere_installation_key` (private, gitignored) and `ssh_keys/adempiere_installation_key.pub` (public, gitignored) inside the project, then copies the public key into the `serversconf` role.
 
 ```bash
 ansible-playbook genkey.yml
