@@ -1,20 +1,20 @@
 # Complete Variable Reference
 
-## Secrets & Credentials (stored in `group_vars/all.yml`)
+## Secrets & Credentials (`group_vars/all/vault.yml`)
 
-These must be set manually via `ansible-vault edit group_vars/all.yml`.
+These must be set manually via `ansible-vault edit group_vars/all/vault.yml`.
 
 | Variable | Used in | Description |
 |---|---|---|
 | `root_user_password` | `serversprep.yml`, `serversconf.yml`, `so-updates.yml` | Root password for initial server access (before SSH key-based auth is configured) |
-| `adempiere_username` | all post-hardening playbooks, `serversconf` role | Name of the non-root system user created on every server (e.g. `westfalia`). Used as SSH login user and file owner. Personalise to any username you prefer — must match on both BackEnd and FrontEnd. |
+| `adempiere_username` | all post-hardening playbooks, `serversconf` role | Name of the non-root system user created on every server. Used as SSH login user and file owner. Personalise to any username you prefer — must match on both BackEnd and FrontEnd. |
 | `your_password` | `serversconf` role | SHA-512 hashed password for `adempiere_username` (`mkpasswd --method=sha-512`) |
 | `adempiere_user_password` | `install-docker.yml`, `deploy-adempiere.yml`, `deploy-traefik.yml`, `deploy-vim.yml`, `adempiere-restoredb.yml` | SSH login password for the `adempiere_username` account |
 | `adempiere_user_become_pass` | same playbooks as above | Sudo password for the `adempiere_username` account |
 | `postgres_password` | `deploy-adempiere` role, `adempiere-restoredb` role | PostgreSQL superuser (`postgres`) password |
 | `adempiere_password` | `adempiere-restoredb` role | Password for the `adempiere` PostgreSQL user (falls back to `postgres_password` if not set) |
 
-## Deployment Variables (also in `group_vars/all.yml`)
+## Deployment Variables (`group_vars/all/vars.yml`)
 
 | Variable | Used in | Description |
 |---|---|---|
@@ -34,7 +34,7 @@ These must be set manually via `ansible-vault edit group_vars/all.yml`.
 | Variable | Default | Description |
 |---|---|---|
 | `key_size` | `4096` | RSA key size in bits |
-| `key_name` | `adempiere_installation_key` | Filename for the keypair under `ssh_keys/` |
+| `key_name` | *(set in `group_vars/all/vars.yml`)* | Filename for the keypair under `ssh_keys/` |
 
 ---
 
@@ -73,11 +73,11 @@ These must be set manually via `ansible-vault edit group_vars/all.yml`.
 | `traefik_socket_uri` | `socket-proxy` | Hostname of the Docker socket proxy container |
 | `socket_container_name` | `socket-proxy` | Socket proxy container name |
 | `socket_image` | `lscr.io/linuxserver/socket-proxy:latest` | Socket proxy Docker image |
-| `dns_domain` | *(set in `group_vars/all.yml`)* | Base domain for routing |
+| `dns_domain` | *(set in `group_vars/all/vars.yml`)* | Base domain for routing |
 | `host` | `adempiere` | Subdomain prefix |
 | `adempiere_host` | `{{ host }}.{{ dns_domain }}` | Full FQDN for ADempiere routing, assembled at runtime |
 | `servers` | `["http://<backend_ip>"]` | List of BackEnd URLs for the ADempiere load balancer |
-| `timezone` | *(set in `group_vars/all.yml`)* | Timezone for the Traefik container |
+| `timezone` | *(set in `group_vars/all/vars.yml`)* | Timezone for the Traefik container |
 
 ## Role: `deploy-traefik` — Vars *(⚠ move to vault — see [security.md](security.md))*
 

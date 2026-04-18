@@ -1,5 +1,6 @@
-# Vault — real secrets file, never commit
-group_vars/all.yml
+# group_vars/all/ — operator-specific files, never commit; use *_template.yml as reference
+group_vars/all/vars.yml
+group_vars/all/vault.yml
 
 # Inventory with real IPs — operator-specific, never commit; use inventories/hosts_template.yml as reference
 inventories/hosts.yml

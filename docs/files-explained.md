@@ -46,13 +46,13 @@ Without the keypair in place, `serversconf` cannot populate `authorized_keys` an
 **Why a dedicated key inside the project (not `~/.ssh/id_rsa`):**  
 Using the OpenSSH default `~/.ssh/id_rsa` is simpler (no configuration needed) but risky on a developer's workstation that already has an `id_rsa` for GitHub or personal SSH — `state: present` would silently reuse it.  
 A dedicated named key inside the project is isolated, portable, and self-contained: the public key travels with the repository and a new operator only needs to run `genkey.yml` once after cloning.  
-The private key is referenced via `ansible_ssh_private_key_file` in `group_vars/all.yml` so all playbooks pick it up automatically without any extra flags.
+The private key is referenced via `ansible_ssh_private_key_file` in `group_vars/all/vars.yml` so all playbooks pick it up automatically without any extra flags.
 
 **`id_rsa` vs. dedicated key — trade-offs (documented for context):**
 
 | | `~/.ssh/id_rsa` | `ssh_keys/adempiere_installation_key` (current) |
 |---|---|---|
-| Configuration needed | None — picked up automatically | `ansible_ssh_private_key_file` in `group_vars/all.yml` |
+| Configuration needed | None — picked up automatically | `ansible_ssh_private_key_file` in `group_vars/all/vars.yml` |
 | Risk of reusing wrong key | Yes — silently reuses existing `id_rsa` | No — always the right key |
 | Passphrase risk | Existing `id_rsa` may have one, breaking unattended runs | Generated without passphrase specifically for automation |
 | Key isolation | Shared across all purposes | Independent — rotate or revoke without affecting anything else |
@@ -65,22 +65,48 @@ The private key is referenced via `ansible_ssh_private_key_file` in `group_vars/
 **Name:** `serversprep.yml`  
 **Location:** project root
 
-**Description:**
+**Description:**  
 
-The playbook that prepares a freshly provisioned server for all subsequent Ansible connections. It targets the `servers` group (both BackEnd and FrontEnd) and must run before any other playbook that connects via SSH.
+- The playbook that prepares a freshly provisioned server for all subsequent Ansible connections.  
+- It targets the `servers` group (both BackEnd and FrontEnd) and must run before any other playbook that connects via SSH.
 
 It does two things before invoking the role:
 
 **pre_task 1 — Set connection credentials**  
-Sets `ansible_user: root` and `ansible_password` from the vault (`root_user_password`). This is how Ansible connects to a server that has not yet been hardened — root login with password on port 22.
+- Sets `ansible_user: root` and `ansible_password` from the vault (`root_user_password`).  
+- This is how Ansible connects to a server that has not yet been hardened — root login with password on port 22.
 
 **pre_task 2 — Add server fingerprint to known_hosts**  
-Runs `ssh-keyscan` against the server IP and writes the result to `~/.ssh/known_hosts` on the control node (`delegate_to: localhost`). Without this, SSH would prompt "unknown host" and the playbook would hang or fail.
+- Runs `ssh-keyscan` against the server IP and writes the result to `~/.ssh/known_hosts` on the control node (`delegate_to: localhost`).  
+- Without this, SSH would prompt "unknown host" and the playbook would hang or fail.
 
-Then calls the `serversprep` role.
+Then calls the `serversprep` role, which installs the project's public key (`ssh_keys/adempiere_installation_key.pub`) into root's `authorized_keys` on the remote server.  
+From this point on, all subsequent playbooks authenticate via keypair — the vault password is no longer needed for SSH.
 
 **Why `gather_facts: false`:**  
-Facts are gathered via SSH. On a brand-new server, the fingerprint is not yet in `known_hosts`, so an SSH connection would fail before facts could be collected. Setting `gather_facts: false` lets the `pre_tasks` handle fingerprinting first.
+- Facts are gathered via SSH.  
+- On a brand-new server, the fingerprint is not yet in `known_hosts`, so an SSH connection would fail before facts could be collected.  
+- Setting `gather_facts: false` lets the `pre_tasks` handle fingerprinting first.
+
+**Why this matters — the bootstrap problem:**  
+- Ansible needs SSH access to do anything on a remote server.  
+- But a freshly provisioned server only allows root login with a password on port 22 — none of the keypair-based authentication that all other playbooks rely on is in place yet.  
+- `serversprep.yml` is the bridge: it uses the one-time root+password credentials to install the keypair, and after that the password is never needed again.  
+- This is the only playbook in the project that uses password-based SSH authentication.
+
+**Sequence dependency:**  
+- `genkey.yml` must have run before `serversprep.yml` — the public key it installs comes from `ssh_keys/adempiere_installation_key.pub`, which `genkey.yml` generates.  
+- If the keypair does not exist, `serversprep.yml` will fail.
+
+**If you have previously SSH'd to the server manually:**  
+The fingerprint will already be in `~/.ssh/known_hosts`. This is not a problem for a real run, but if you want to test the full flow (including the fingerprint-adding task), remove it first:
+
+```bash
+ssh-keygen -R <backend_ip>
+ssh-keygen -R <frontend_ip>
+```
+
+The IPs are in `inventories/hosts.yml`. After running `serversprep.yml`, the fingerprint will be re-added automatically.
 
 ---
 
@@ -94,13 +120,16 @@ Facts are gathered via SSH. On a brand-new server, the fingerprint is not yet in
 Two tasks that run on the remote server after the playbook's `pre_tasks` have established the connection:
 
 **Task 1 — Add fingerprint (remote side)**  
-A second `known_hosts` call, this time running on the remote server rather than the control node. In practice the `pre_tasks` version (which runs on `localhost`) is the one that matters for Ansible connectivity; this task is redundant and may be removed in a future cleanup.
+- A second `known_hosts` call, this time running on the remote server rather than the control node.  
+- In practice the `pre_tasks` version (which runs on `localhost`) is the one that matters for Ansible connectivity; this task is redundant and may be removed in a future cleanup.
 
 **Task 2 — Install the public key on the server**  
-Adds `ssh_keys/adempiere_installation_key.pub` to root's `authorized_keys` on the remote server. After this step, all subsequent playbooks can authenticate as root using the project keypair instead of the vault password — and once `serversconf.yml` runs and disables password auth entirely, this key becomes the only way in.
+- Adds `ssh_keys/adempiere_installation_key.pub` to root's `authorized_keys` on the remote server. 
+- After this step, all subsequent playbooks can authenticate as root using the project keypair instead of the vault password — and once `serversconf.yml` runs and disables password auth entirely, this key becomes the only way in.
 
 **Key path:**  
-Uses `playbook_dir + '/ssh_keys/' + key_name + '.pub'` — consistent with the `genkey` role. If `genkey.yml` has not been run first, this lookup will fail.
+- Uses `playbook_dir + '/ssh_keys/' + key_name + '.pub'` — consistent with the `genkey` role.  
+- If `genkey.yml` has not been run first, this lookup will fail.
 
 **Behaviour under `--check` (dry run):**  
 `known_hosts` and `authorized_key` both support check mode and will report `changed` or `ok` without making changes. The dry run is accurate for this role.

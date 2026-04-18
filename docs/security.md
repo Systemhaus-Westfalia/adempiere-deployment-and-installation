@@ -17,7 +17,7 @@ cloudflare_email: <actual-email>
 
 2. Add the new values to the vault:
    ```bash
-   ansible-vault edit group_vars/all.yml
+   ansible-vault edit group_vars/all/vault.yml
    ```
    Add (with corrected spelling):
    ```yaml
@@ -27,7 +27,7 @@ cloudflare_email: <actual-email>
 
 3. Clear `roles/deploy-traefik/vars/main.yml` to a comment only:
    ```yaml
-   # Cloudflare credentials are stored in the vault (group_vars/all.yml)
+   # Cloudflare credentials are stored in the vault (group_vars/all/vault.yml)
    # Variables: cloudflare_token, cloudflare_email
    ```
 
@@ -75,7 +75,7 @@ Security patches are applied automatically without manual intervention.
 ## Vault Hygiene
 
 - Never commit `~/.vault_pass.txt` to git
-- Never commit `group_vars/all.yml` in decrypted form
+- Never commit `group_vars/all/vault.yml` in decrypted form
 - Never commit `ssh_keys/adempiere_installation_key` (the private key) — it is gitignored; only the `.pub` is tracked
 - A `.gitignore` is in place covering all of the above
 - If a secret is ever exposed: rotate it immediately, then update the vault

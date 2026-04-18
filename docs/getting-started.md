@@ -51,7 +51,7 @@ ansible-galaxy collection install community.docker community.postgresql communit
 echo "MyVaultPassword" > ~/.vault_pass.txt && chmod 600 ~/.vault_pass.txt
 
 # Populate all variables (IPs, domain, SSH port, passwords, Cloudflare token…)
-ansible-vault edit group_vars/all.yml
+ansible-vault edit group_vars/all/vault.yml
 ```
 
 See [vault.md](vault.md) for the full list of required variables.
@@ -64,7 +64,7 @@ ansible-playbook genkey.yml
 ```
 
 > **Strongly recommended:** keep the default key name `adempiere_installation_key`.  
-> Changing it requires updating `ansible_ssh_private_key_file` in `group_vars/all.yml` and `key_name` in `roles/genkey/defaults/main.yml`.
+> Changing it requires updating `key_name` and `ansible_ssh_private_key_file` in `group_vars/all/vars.yml`.
 
 This creates:
 - `ssh_keys/adempiere_installation_key` — private key (gitignored, never commit)
@@ -84,7 +84,7 @@ ansible-galaxy collection list | grep -E 'community\.(docker|postgresql|crypto)'
 ls -la ~/.vault_pass.txt
 
 # Vault decrypts and contains all required variables
-ansible-vault view group_vars/all.yml | grep -E 'root_user_password|adempiere_username|adempiere_user_password|adempiere_user_become_pass|custom_sshport'
+ansible-vault view group_vars/all/vault.yml | grep -E 'root_user_password|adempiere_username|adempiere_user_password|adempiere_user_become_pass|custom_sshport'
 
 # Inventory has real IPs — no placeholders
 cat inventories/hosts.yml
@@ -102,7 +102,7 @@ For a detailed explanation of each check, see [testing.md](testing.md).
 Then verify that the BackEnd is reachable before any playbook touches it:
 
 ```bash
-ROOT_PASS=$(ansible-vault view group_vars/all.yml | grep root_user_password | awk '{print $2}') && ansible BackEnd -m ping -e "ansible_user=root ansible_password=$ROOT_PASS"
+ROOT_PASS=$(ansible-vault view group_vars/all/vault.yml | grep root_user_password | awk '{print $2}') && ansible BackEnd -m ping -e "ansible_user=root ansible_password=$ROOT_PASS"
 ```
 
 This single command replaces the need to manually run `ping`, `nc`, or `ssh` against the server IP.  
@@ -121,6 +121,12 @@ If it fails, do not proceed — fix connectivity first. See the SSH / Network se
 
 ## Phase 1 — BackEnd dry run
 
+> **If you have previously SSH'd to the BackEnd manually**, its fingerprint is already in `~/.ssh/known_hosts`. Remove it first so `serversprep.yml` can add it correctly:
+> ```bash
+> ssh-keygen -R <backend_ip>
+> ```
+> The IP is in `inventories/hosts.yml`. `serversprep.yml` will re-add the fingerprint automatically.
+
 ```bash
 # genkey.yml was already run in the one-time setup above — skip if keypair exists
 ansible-playbook serversprep.yml    --limit BackEnd      --check
@@ -130,7 +136,7 @@ ansible-playbook install-docker.yml --limit BackEnd      --check  # approximate
 ansible-playbook deploy-adempiere.yml                    --check  # approximate
 ```
 
-Review the output. Anything unexpected? Adjust `group_vars/all.yml` and re-run `--check` before proceeding.
+Review the output. Anything unexpected? Adjust `group_vars/all/vars.yml` or `group_vars/all/vault.yml` and re-run `--check` before proceeding.
 
 ---
 
@@ -175,7 +181,7 @@ If anything is wrong, see [testing.md](testing.md) for diagnostics.
 Before proceeding, verify the FrontEnd is reachable:
 
 ```bash
-ROOT_PASS=$(ansible-vault view group_vars/all.yml | grep root_user_password | awk '{print $2}') && ansible FrontEnd -m ping -e "ansible_user=root ansible_password=$ROOT_PASS"
+ROOT_PASS=$(ansible-vault view group_vars/all/vault.yml | grep root_user_password | awk '{print $2}') && ansible FrontEnd -m ping -e "ansible_user=root ansible_password=$ROOT_PASS"
 ```
 
 **Expected:** `pong` from `frontend`.  

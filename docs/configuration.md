@@ -73,7 +73,7 @@ The transition from `root` to `<admin_user>` happens after `serversconf.yml` cre
 
 Role defaults are defined in `roles/<role>/defaults/main.yml`. Override any of them by setting the variable in:
 
-- `group_vars/all.yml` (applies to all hosts)
+- `group_vars/all/vars.yml` (applies to all hosts)
 - A host-specific block in `inventories/hosts.yml` under the relevant host
 - On the command line: `ansible-playbook deploy-adempiere.yml -e "repo_version=main"`
 
@@ -83,7 +83,7 @@ See [variables.md](variables.md) for the full list of defaults per role.
 
 ## Changing the Domain
 
-The domain is set in `group_vars/all.yml`:
+The domain is set in `group_vars/all/vars.yml`:
 
 ```yaml
 dns_domain: "yourdomain.example.com"

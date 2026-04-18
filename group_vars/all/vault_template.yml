@@ -1,0 +1,20 @@
+#SPDX-License-Identifier: MIT-0
+---
+# Template for group_vars/all/vault.yml — secret credentials.
+#
+# HOW TO USE:
+#   cp group_vars/all/vault_template.yml group_vars/all/vault.yml
+#   Fill in your real passwords.
+#   Encrypt it: ansible-vault encrypt group_vars/all/vault.yml
+#   group_vars/all/vault.yml is gitignored — never commit it.
+#
+# To view or edit after encryption:
+#   ansible-vault view group_vars/all/vault.yml
+#   ansible-vault edit group_vars/all/vault.yml
+
+# Root password for initial server access (used by serversprep.yml and serversconf.yml only)
+root_user_password: 'your-root-password'
+
+# SSH password and sudo password for the adempiere_username account (post-hardening)
+adempiere_user_password: 'your-admin-user-password'
+adempiere_user_become_pass: 'your-admin-sudo-password'

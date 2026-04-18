@@ -4,11 +4,10 @@
 
 These two items will cause immediate failure or lock you out if not addressed first:
 
-**1. Remove `custom_sshport` from the vault if it appears twice.**
-All variables live in the single `group_vars/all.yml` vault file. If `custom_sshport` was added there more than once, Ansible will behave unpredictably. Edit the vault and ensure it appears only once:
+**1. Verify `custom_sshport` appears in `vars.yml` only.**
+`custom_sshport` is a plain-text config value and lives in `group_vars/all/vars.yml`. If it was accidentally also added to `group_vars/all/vault.yml`, Ansible will behave unpredictably. Open both files and ensure it appears only once total:
 ```bash
-ansible-vault edit group_vars/all.yml
-# Ensure custom_sshport appears only once
+ansible-vault view group_vars/all/vault.yml | grep custom_sshport   # should return nothing
 ```
 
 **2. Verify the SSH port before re-running `serversconf.yml`.**
@@ -80,19 +79,6 @@ mkpasswd --method=sha-512
 # Edit the vault file and replace your_password with the new hash
 ansible-vault edit roles/serversconf/vars/main.yml
 ```
-
----
-
-## 10. Future improvement — split `group_vars/all.yml` into vault + override
-
-**Current state:** All variables (vault secrets and deployment-specific values such as IPs, domain, SSH port) are stored together in the single encrypted file `group_vars/all.yml`.
-
-**Better practice:** Split into two files under `group_vars/all/`:
-- `vault.yml` — AES-256 encrypted secrets only (passwords, API keys)
-- `override.yml` — plain-text deployment values (IPs, domain, SSH port) — gitignored
-- `override_template.yml` — committed template operators copy to create their own `override.yml`
-
-This separation makes it easier to see which values need to change per deployment without decrypting the vault. Not urgent — the current single-file approach works correctly.
 
 ---
 

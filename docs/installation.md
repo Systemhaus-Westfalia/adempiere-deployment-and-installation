@@ -24,7 +24,7 @@ Complete the [Pre-Flight Checklist](installation.md#pre-flight-checklist) before
 - [ ] Ansible 2.14+: `ansible --version`
 - [ ] Collections installed: `ansible-galaxy collection list | grep -E 'community\.(docker|postgresql|crypto)'`
 - [ ] Vault password file: `ls -la ~/.vault_pass.txt` (must be mode `0600`)
-- [ ] Vault decrypts: `ansible-vault view group_vars/all.yml`
+- [ ] Vault decrypts: `ansible-vault view group_vars/all/vault.yml`
 - [ ] All vault variables populated — see [vault.md](vault.md)
 
 **Target servers:**

@@ -106,7 +106,7 @@ The key variable in that template is `adempiere_host`, which determines which ho
 It is not set as a single value in one place — it is assembled from two pieces at runtime:
 
 ```
-group_vars/all.yml
+group_vars/all/vars.yml
   dns_domain: "your-domain.example.com"           ← you set this
 
 roles/deploy-traefik/defaults/main.yml
@@ -120,8 +120,8 @@ Result on the FrontEnd server after deployment:
   rule: "Host(`adempiere.your-domain.example.com`)"
 ```
 
-To change the **domain**: edit `dns_domain` in `group_vars/all.yml`.
-To change the **subdomain**: override `host` in `group_vars/all.yml` (e.g. `host: "erp"` would produce `erp.your-domain.example.com`).  
+To change the **domain**: edit `dns_domain` in `group_vars/all/vars.yml`.
+To change the **subdomain**: override `host` in `group_vars/all/vars.yml` (e.g. `host: "erp"` would produce `erp.your-domain.example.com`).  
 This covers one customer. For how to add a second customer in practice, see the **Adding a Customer** section in [operations.md](operations.md).
 
 ---
@@ -168,7 +168,7 @@ This approach requires no public HTTP port for certificate issuance and works ev
 | Docker API | Access via socket-proxy (read-only) | Yes — `deploy-traefik` role |
 | TLS | Let's Encrypt certificate, auto-renewed by Traefik | Yes — `deploy-traefik` role |
 | OS patches | `unattended-upgrades` applies security updates automatically | Yes — `serversconf` role |
-| Encrypted variables | Ansible Vault (AES-256) | Yes — `group_vars/all.yml` |
+| Encrypted variables | Ansible Vault (AES-256) | Yes — `group_vars/all/vault.yml` |
 | Network firewall | Block direct access to BackEnd ports | **No — must be configured at the hosting provider** |
 
 ---

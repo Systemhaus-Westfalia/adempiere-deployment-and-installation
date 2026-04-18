@@ -34,9 +34,13 @@ By the end of this automation, the following will be in place:
 - Both servers have **Docker CE** installed.
 - The **BackEnd** server runs the ADempiere ERP container stack (application + PostgreSQL database), cloned from the Systemhaus Westfalia GitHub repository.
 - The **FrontEnd** server runs **Traefik**, a reverse proxy that receives HTTPS traffic from the internet, terminates TLS using a certificate automatically issued by Let's Encrypt via the Cloudflare DNS API, and forwards requests to the BackEnd.
-- The system is reachable at the domain configured in `group_vars/all.yml`.
+- The system is reachable at the domain configured in `group_vars/all/vars.yml`.
 
-Sensitive values (passwords, API tokens) are stored encrypted using **Ansible Vault**. All variables are kept in `group_vars/all.yml` (gitignored — never committed). Copy it from `group_vars/all_template.yml` and encrypt it with the default vault password `MyVaultPassword` — **change this password before deploying to production**. The vault password must also be stored in `~/.vault_pass.txt` on the control node; `ansible.cfg` references this file so Ansible decrypts the vault automatically on every run. See [docs/vault.md](docs/vault.md).
+Configuration is split across two gitignored files under `group_vars/all/`:
+- `vars.yml` — plain-text deployment values (domain, SSH port, username, key path). Copy from `vars_template.yml`.
+- `vault.yml` — AES-256 encrypted secrets (passwords, API tokens). Copy from `vault_template.yml` and encrypt with `ansible-vault encrypt`.
+
+The vault password must be stored in `~/.vault_pass.txt` on the control node; `ansible.cfg` references this file so Ansible decrypts the vault automatically on every run. **Change the vault password before deploying to production.** See [docs/vault.md](docs/vault.md).
 
 You run all commands from your local machine. Ansible connects to the servers over SSH and handles everything remotely.
 
@@ -54,7 +58,9 @@ Control Node (your local machine)
 ├── inventories/hosts            ← list of target servers, organised into named groups
 │
 ├── group_vars/                  ← variables shared across a group of hosts
-│   └── all.yml                  ← vault-encrypted secrets + deployment values (IPs, domain, port)
+│   └── all/
+│       ├── vars.yml             ← plain-text config values (domain, SSH port, username) — gitignored
+│       └── vault.yml            ← AES-256 encrypted secrets (passwords, API tokens) — gitignored
 │
 ├── Playbook  (*.yml)            ← entry point: "run these roles on these hosts"
 │   ├── hosts: <group>           ← which inventory group to target
@@ -81,7 +87,10 @@ CLI  -e "key=value"          ← highest — always overrides everything
 roles/<name>/vars/main.yml   ← role-level constants
      │
      ▼
-group_vars/all.yml           ← vault secrets + override values
+group_vars/all/vars.yml      ← config values (domain, port, username…)
+     │
+     ▼
+group_vars/all/vault.yml     ← encrypted secrets (passwords, API tokens)
      │
      ▼
 roles/<name>/defaults/main.yml  ← lowest — safe defaults, meant to be overridden

@@ -12,11 +12,19 @@ In short: the vault is an encrypted YAML file that lives in your repository but 
 
 ## Configuration File Structure
 
-All variables — secrets and deployment-specific values alike — are stored in a single AES-256
-encrypted vault file:
+Variables are split into two gitignored files under `group_vars/all/`:
 
 ```
-group_vars/all.yml       ← AES-256 encrypted — secrets + deployment values (IPs, domain, SSH port)
+group_vars/all/
+├── vars.yml       ← plain-text config values (domain, SSH port, username, key path) — gitignored
+└── vault.yml      ← AES-256 encrypted secrets (passwords, API tokens) — gitignored
+```
+
+Templates are committed and serve as the reference for operators:
+```
+group_vars/all/
+├── vars_template.yml    ← copy to vars.yml and fill in your values
+└── vault_template.yml   ← copy to vault.yml, fill in secrets, then encrypt
 ```
 
 The vault password lives only on your local machine and is never committed to git:
@@ -24,21 +32,16 @@ The vault password lives only on your local machine and is never committed to gi
 ~/.vault_pass.txt    ← referenced in ansible.cfg; read automatically on every run
 ```
 
-### What is stored here
+### What goes where
 
-| Value | Reason |
-|---|---|
-| Server passwords | Must be encrypted |
-| API tokens (Cloudflare) | Must be encrypted |
-| Server IPs | Deployment-specific values |
-| SSH port | Deployment-specific values |
-| Domain name | Deployment-specific values |
-| Admin username | Deployment-specific values |
-| Timezone, paths | Deployment-specific values |
-
-> **Future improvement:** splitting into a `vault.yml` (secrets only) and a plain-text `override.yml`
-> (deployment values, gitignored) would make it easier to inspect non-secret values without
-> decrypting. See [known-issues.md](known-issues.md) item 9 for details.
+| Value | File | Reason |
+|---|---|---|
+| Server passwords | `vault.yml` | Must be encrypted |
+| API tokens (Cloudflare) | `vault.yml` | Must be encrypted |
+| Admin username | `vars.yml` | Non-secret config |
+| SSH port | `vars.yml` | Non-secret config |
+| Domain name | `vars.yml` | Non-secret config |
+| SSH key name and path | `vars.yml` | Non-secret config |
 
 ---
 
@@ -50,25 +53,33 @@ echo "YourStrongVaultPassword" > ~/.vault_pass.txt
 chmod 600 ~/.vault_pass.txt
 ```
 
-**2. Edit the vault file with your variables:**
+**2. Copy the templates and fill in your values:**
 ```bash
-ansible-vault edit group_vars/all.yml
+cp group_vars/all/vars_template.yml group_vars/all/vars.yml
+# Edit vars.yml — domain, SSH port, username, key path
 ```
+
+**3. Create and encrypt the vault file:**
+```bash
+cp group_vars/all/vault_template.yml group_vars/all/vault.yml
+# Edit vault.yml — passwords and API tokens
+ansible-vault encrypt group_vars/all/vault.yml
+```
+
+After this, `vault.yml` is encrypted on disk. Use `ansible-vault edit` to modify it later.
 
 ---
 
-## Vault File Contents
+## Vault File Contents (`group_vars/all/vault.yml`)
 
-The vault file must contain the following variables. See [variables.md](variables.md) for the full reference.
+The vault file contains only secrets. See [variables.md](variables.md) for the full reference.
 
 ```yaml
 # Initial root access (used only during the first two playbooks)
 root_user_password: "the-root-password-on-the-vps"
 
-# Admin username — created on every server by serversconf.yml.
-# All post-hardening playbooks connect as this user. Personalise freely.
-adempiere_username: "westfalia"   # change to your preferred username
-your_password: "$6$..."           # SHA-512 hash of the above user's password — see below
+# SHA-512 hash of the admin user's password — see below
+your_password: "$6$..."
 
 # Post-hardening SSH credentials for adempiere_username
 adempiere_user_password: "your-admin-user-password"
@@ -79,12 +90,16 @@ postgres_password: "strong-postgres-password"
 adempiere_password: "strong-adempiere-db-password"
 ```
 
-> **⚠ IMPORTANT — `custom_sshport` must appear only once.**
-> If it was accidentally added twice to `group_vars/all.yml`, Ansible will use an unpredictable value. Verify it appears only once:
-> ```bash
-> ansible-vault edit group_vars/all.yml
-> # Ensure custom_sshport appears only once, then save and close
-> ```
+## Plain-Text Variables (`group_vars/all/vars.yml`)
+
+```yaml
+key_name: adempiere_installation_key
+ansible_ssh_private_key_file: "{{ playbook_dir }}/ssh_keys/adempiere_installation_key"
+adempiere_username: "your-admin-username"
+custom_sshport: 10099
+dns_domain: "your-domain.example.com"
+timezone: "Europe/Berlin"
+```
 
 ---
 
@@ -108,18 +123,18 @@ Copy the output (it starts with `$6$`) into the vault.
 
 | Command | Purpose |
 |---|---|
-| `ansible-vault edit group_vars/all.yml` | Open encrypted file in your editor |
-| `ansible-vault view group_vars/all.yml` | Print decrypted contents (read-only) |
-| `ansible-vault create group_vars/all.yml` | Create a new encrypted file from scratch |
-| `ansible-vault encrypt group_vars/all.yml` | Encrypt a plaintext file |
-| `ansible-vault decrypt group_vars/all.yml` | Decrypt to plaintext (use with care — never commit the result) |
-| `ansible-vault rekey group_vars/all.yml` | Change the vault password |
+| `ansible-vault edit group_vars/all/vault.yml` | Open encrypted file in your editor |
+| `ansible-vault view group_vars/all/vault.yml` | Print decrypted contents (read-only) |
+| `ansible-vault create group_vars/all/vault.yml` | Create a new encrypted file from scratch |
+| `ansible-vault encrypt group_vars/all/vault.yml` | Encrypt a plaintext file |
+| `ansible-vault decrypt group_vars/all/vault.yml` | Decrypt to plaintext (use with care — never commit the result) |
+| `ansible-vault rekey group_vars/all/vault.yml` | Change the vault password |
 
 ---
 
 ## Role Vars Files
 
-Two role vars files are also vault-encrypted and use the **same password** as `group_vars/all.yml`
+Two role vars files are also vault-encrypted and use the **same password** as `group_vars/all/vault.yml`
 (`MyVaultPassword` by default — change before going live):
 
 | File | Contains |
@@ -139,7 +154,7 @@ To change the vault password (applies to all three files at once):
 ```bash
 printf "NewPassword" > /tmp/new_pass.txt
 ansible-vault rekey --vault-password-file ~/.vault_pass.txt --new-vault-password-file /tmp/new_pass.txt \
-  group_vars/all.yml roles/serversconf/vars/main.yml roles/deploy-adempiere/vars/main.yml
+  group_vars/all/vault.yml roles/serversconf/vars/main.yml roles/deploy-adempiere/vars/main.yml
 cp /tmp/new_pass.txt ~/.vault_pass.txt && rm /tmp/new_pass.txt
 ```
 

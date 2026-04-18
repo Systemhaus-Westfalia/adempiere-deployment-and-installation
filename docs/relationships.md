@@ -26,10 +26,10 @@ To make the layer structure tangible, this subsection traces a single playbook �
 
 ```
 ┌─────────────────────┐  provides   ┌───────────────────────────┐  delegates  ┌─────────────────────┐
-│  group_vars/all.yml │  variables  │                           │     to      │  roles/             │
-│                     │------------>│  deploy-                  │------------>│  deploy-adempiere/  │
+│  group_vars/all/    │  variables  │                           │     to      │  roles/             │
+│  vars.yml+vault.yml │------------>│  deploy-                  │------------>│  deploy-adempiere/  │
 │  contains:          │             │  adempiere.yml            │             │                     │
-│  vault secrets,     │             │                           │             │  contains:          │
+│  vars + secrets,    │             │                           │             │  contains:          │
 │  passwords,SSH port │             │  defines:                 │             │  tasks/main.yml     │
 └─────────────────────┘             │  hosts: BackEnd           │             │  defaults/main.yml  │
         VARS                        │  user: adempiere_username │             │  templates/         │
@@ -300,13 +300,16 @@ CLI -e flags  (highest)
 roles/<role>/vars/main.yml        ← role-level constants
         │
         ▼
-group_vars/all.yml                ← vault-encrypted secrets + deployment values (IPs, domain, SSH port)
+group_vars/all/vars.yml           ← deployment values (IPs, domain, SSH port)
+        │
+        ▼
+group_vars/all/vault.yml          ← vault-encrypted secrets (passwords, API tokens)
         │
         ▼
 roles/<role>/defaults/main.yml    ← role defaults (lowest — always overridable)
 ```
 
-> All variables (passwords, IPs, domain, SSH port) are stored together in `group_vars/all.yml`.
+> Variables are split across `group_vars/all/vars.yml` (plain-text config) and `group_vars/all/vault.yml` (AES-256 encrypted secrets). Both are gitignored; use the `*_template.yml` files as reference.
 
 ---
 

@@ -12,11 +12,12 @@
 
     - name: Add host fingerprint to known_hosts
       ansible.builtin.known_hosts:
-        name: "{{ inventory_hostname }}"
-        key: "{{ lookup('pipe', 'ssh-keyscan -H ' + inventory_hostname) }}"
+        name: "{{ ansible_host }}"
+        key: "{{ lookup('pipe', 'ssh-keyscan -H ' + ansible_host) }}"
         path: "~/.ssh/known_hosts"
       delegate_to: localhost
       become: false
+      check_mode: false
 
   roles:
     - serversprep

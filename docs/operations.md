@@ -74,7 +74,7 @@ Traefik picks up the new file immediately — no restart needed. The TLS certifi
      dest: 'app-customer-b.yaml'
    ```
 
-3. Add the customer's variables to `group_vars/all.yml`.
+3. Add the customer's variables to `group_vars/all/vars.yml`.
 
 4. Re-run:
    ```bash

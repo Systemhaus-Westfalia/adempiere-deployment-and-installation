@@ -36,9 +36,9 @@ For pre-flight checks before first deployment, see the **Pre-flight check** sect
 > Variables used throughout this guide:
 > - `<backend_ip>` — BackEnd server IP (from `inventories/hosts.yml`)
 > - `<frontend_ip>` — FrontEnd server IP (from `inventories/hosts.yml`)
-> - `<custom_sshport>` — custom SSH port (from `group_vars/all.yml`, default `10099`)
-> - `<admin_user>` — admin username set in `adempiere_username` (default `westfalia`)
-> - `<dns_domain>` — your domain (from `group_vars/all.yml`)
+> - `<custom_sshport>` — custom SSH port (from `group_vars/all/vars.yml`, default `10099`)
+> - `<admin_user>` — admin username set in `adempiere_username` (from `group_vars/all/vars.yml`)
+> - `<dns_domain>` — your domain (from `group_vars/all/vars.yml`)
 
 ---
 
@@ -81,7 +81,7 @@ nc -zv <frontend_ip> <custom_sshport>
 
 ```bash
 # Before serversconf (root, port 22)
-ansible servers -m ping -e "ansible_user=root ansible_password=$(ansible-vault view group_vars/all.yml | grep root_user_password | awk '{print $2}')"
+ansible servers -m ping -e "ansible_user=root ansible_password=$(ansible-vault view group_vars/all/vault.yml | grep root_user_password | awk '{print $2}')"
 
 # After serversconf (admin user, custom port)
 ansible servers -m ping -e "ansible_user=<admin_user> ansible_port=<custom_sshport>"

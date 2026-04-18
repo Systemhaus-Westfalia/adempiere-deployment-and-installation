@@ -17,14 +17,14 @@ ssh <admin_user>@<server-ip> -p <custom_sshport>
 
 **Symptom:**
 ```
-ERROR! Decryption failed (no vault secrets would unlock...) on group_vars/all.yml
+ERROR! Decryption failed (no vault secrets would unlock...) on group_vars/all/vault.yml
 ```
 
 **Checks:**
 ```bash
 cat ~/.vault_pass.txt           # verify content
 ls -la ~/.vault_pass.txt        # must show -rw------- (0600)
-ansible-vault view group_vars/all.yml   # test decryption directly
+ansible-vault view group_vars/all/vault.yml   # test decryption directly
 ```
 
 ---
