@@ -33,6 +33,10 @@ custom_sshport: 10099
 # Used by deploy-traefik.yml to configure Traefik routing rules and the Let's Encrypt certificate.
 dns_domain: your-domain.example.com
 
+# Git repository URL and branch for the ADempiere stack.
+repo_url: https://github.com/Systemhaus-Westfalia/adempiere-ui-gateway.git
+repo_version: adempiere-trunk
+
 # Timezone for containers (e.g. Europe/Berlin, America/New_York).
 # See https://en.wikipedia.org/wiki/List_of_tz_database_time_zones
 timezone: your-timezone

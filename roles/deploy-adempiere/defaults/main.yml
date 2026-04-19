@@ -5,8 +5,7 @@
 adempiere_container_filter: adempiere-ui-gateway
 adempiere_container_name: adempiere-ui-gateway
 install_path: /opt/development
-repo_url: https://github.com/Systemhaus-Westfalia/adempiere-ui-gateway.git
-repo_version: adempiere-trunk
+# repo_url and repo_version are set in group_vars/all/vars.yml — do not set defaults here
 be_user: "{{ adempiere_username }}"
 postgres_external_port: 5432
 status_file: /opt/development/script_status.txt

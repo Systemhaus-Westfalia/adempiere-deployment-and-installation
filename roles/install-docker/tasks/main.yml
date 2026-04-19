@@ -89,9 +89,3 @@
   ansible.builtin.group:
     name: docker
     state: present
-
-- name: Add ansible user to docker group
-  ansible.builtin.user:
-    name: "{{ ansible_user }}"
-    groups: docker
-    append: true

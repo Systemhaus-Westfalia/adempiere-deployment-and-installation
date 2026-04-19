@@ -22,6 +22,8 @@ These must be set manually via `ansible-vault edit group_vars/all/vault.yml`.
 | `custom_sshport` | All post-hardening playbooks, `serversconf` role | Custom SSH port — serversconf moves SSH from 22 to this port |
 | `dns_domain` | `deploy-traefik` role | Base domain for routing and TLS certificates (e.g. `example.com`) |
 | `timezone` | `deploy-traefik` role | Timezone for containers (e.g. `America/El_Salvador`, `Europe/Berlin`) |
+| `repo_url` | `deploy-adempiere` role | Git repository URL for the ADempiere stack |
+| `repo_version` | `deploy-adempiere` role | Branch or tag to deploy (e.g. `adempiere-trunk`, `main`) |
 | `key_name` | `genkey` role, `serversprep` role | SSH keypair filename under `ssh_keys/` |
 | `ansible_ssh_private_key_file` | All playbooks connecting to remote servers | Path to the project SSH private key (`ssh_keys/adempiere_installation_key`) |
 
