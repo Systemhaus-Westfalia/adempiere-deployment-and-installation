@@ -255,3 +255,128 @@ Play-level `vars:` are evaluated before `gather_facts`, so the correct user is i
 - During a dry run, the "Create user" task does not actually create the user on the server.  
 - The subsequent "Add ADMIN ssh-keys" task therefore cannot resolve the user's home directory for `adempiere_username` and reports a failure.  
 - This is suppressed with `ignore_errors: "{{ ansible_check_mode }}"` — the error is ignored only in check mode; in a real run the user exists and the task succeeds normally.
+
+---
+
+## install-docker.yml
+
+**Name:** `install-docker.yml`  
+**Location:** project root
+
+**Description:**
+
+Installs Docker CE and Docker Compose plugin on both BackEnd and FrontEnd servers. Must run after `serversconf.yml` — it connects as `adempiere_username` on the custom SSH port, which only exists after `serversconf` has run.
+
+**Why `gather_facts: true` with play-level `vars:`:**
+
+The role needs OS facts to construct the correct Docker APT repository URL and GPG key path — Ubuntu and Debian use different base URLs. Since `gather_facts: true` connects before `pre_tasks` run, connection credentials must be set at the play level via `vars:` (not via `set_fact` in `pre_tasks`). Play-level `vars:` are evaluated before the initial SSH connection is made.
+
+**Why the admin user is NOT added to the `docker` group:**
+
+Membership in the `docker` group is equivalent to unrestricted root access — any user in that group can run `docker run --rm -v /:/host alpine chroot /host` and become root without a password. All Docker commands in this project run via `sudo`, which preserves the audit trail and requires the sudo password. The role ensures the `docker` group exists (required by the Docker daemon) but deliberately does not add `adempiere_username` to it.
+
+---
+
+## roles/install-docker/tasks/main.yml
+
+**Name:** `main.yml`  
+**Location:** `roles/install-docker/tasks/main.yml`
+
+**Description:**
+
+Installs Docker CE from Docker's official APT repository. The role supports both Debian and Ubuntu and auto-detects the distribution at runtime.
+
+**Task 1 — Validate OS**  
+Asserts that the target is Debian or Ubuntu. Fails immediately with a clear message on any other OS, rather than proceeding and failing later with a cryptic APT error.
+
+**Task 2 — Set distro-specific variables**  
+Constructs `docker_repo_base`, `docker_gpg_url`, and `docker_arch` from Ansible facts. The architecture mapping (`x86_64` → `amd64`, `aarch64` → `arm64`) is needed because Docker's repository uses Debian-style architecture names while Ansible reports Linux kernel names.
+
+**Tasks 3–4 — APT dependencies**  
+Updates the cache and installs prerequisites (`curl`, `ca-certificates`, `python3-debian`, `git`, etc.) needed for the Docker GPG key download and repository configuration.
+
+**Tasks 5–6 — GPG key**  
+Creates `/etc/apt/keyrings/` and downloads Docker's official GPG key to `/etc/apt/keyrings/docker.asc`. Signing the repository with a downloaded key (rather than relying on the OS keyring) is Docker's own recommended installation method.
+
+**Task 7 — Add Docker APT repository**  
+Uses `ansible.builtin.deb822_repository` to write a `.sources` file in modern Deb822 format. The `architectures` filter is applied here too — Docker's repository requires `amd64` not `x86_64`.
+
+**Task 8 — Update cache and install Docker**  
+Installs `docker-ce`, `docker-ce-cli`, `containerd.io`, `docker-buildx-plugin`, and `docker-compose-plugin` from the newly added repository.
+
+**Task 9 — Enable Docker service**  
+Ensures the Docker daemon starts now and on every boot.
+
+**Task 10 — Create `/docker` directory**  
+Creates `/docker` (mode `0755`) as the base directory for container configuration on the FrontEnd server. Harmless on BackEnd.
+
+**Task 11 — Ensure docker group exists**  
+Creates the `docker` OS group if it does not already exist. Required by the Docker daemon. The admin user is intentionally not added to this group — see `install-docker.yml` above.
+
+---
+
+## deploy-adempiere.yml
+
+**Name:** `deploy-adempiere.yml`  
+**Location:** project root
+
+**Description:**
+
+Clones the `adempiere-ui-gateway` repository and starts the Docker Compose stack on the BackEnd server. Must run after `install-docker.yml`.
+
+Connects as `adempiere_username` on the custom SSH port via `set_fact` in `pre_tasks`. Uses `gather_facts: false` because the role's network facts are gathered explicitly inside the role with `ansible.builtin.setup` — this avoids the gather_facts timing problem while still making facts available where needed.
+
+**Sequence dependency:**  
+`install-docker.yml` must have completed successfully. Docker CE must be present and the daemon must be running before this playbook can start containers.
+
+---
+
+## roles/deploy-adempiere/tasks/main.yml
+
+**Name:** `main.yml`  
+**Location:** `roles/deploy-adempiere/tasks/main.yml`
+
+**Description:**
+
+Orchestrates the full ADempiere deployment in eight steps.
+
+**Task 1 — Gather network facts**  
+Explicitly gathers the `network` subset of facts. Used in `override.env.j2` to inject the server's IP address into the Docker Compose environment. Gathering only the network subset is faster than a full fact collection.
+
+**Task 2 — Ensure development directory exists**  
+Creates `{{ install_path }}` (default: `/opt/development`) owned by `{{ be_user }}`. Uses `become: true` to create a system-level directory. Idempotent — does nothing if the directory already exists.
+
+**Task 3 — Clone or update repository**  
+Clones `adempiere-ui-gateway` from GitHub using `ansible.builtin.git` with `update: yes`. On every run, Ansible fetches the latest commits from the remote branch (`{{ repo_version }}`). If the repo is already present and up to date, the task reports `ok` with no changes. No sentinel file is needed — the git module is idempotent by design.
+
+**Task 4 — Generate override.env**  
+Renders `templates/override.env.j2` into `{{ install_path }}/adempiere-ui-gateway/docker-compose/override.env` with mode `0600` (owner-read only). This file contains database passwords and URLs and must never be world-readable. The `override.env` is read by `start-all.sh` to inject environment-specific values into the Docker Compose stack.
+
+**Task 5 — Check if container is already running**  
+Runs `docker ps` (running containers only, not `docker ps -a`) filtered by `{{ adempiere_container_filter }}`. Registers the result. No state change.
+
+**Tasks 6a — Include start.yml and wait.yml (conditional)**  
+Included only if the container is not already running (task 5 returned empty output). This is the idempotency guard: if the stack is already up, it is not restarted. The condition is based on real system state — not a sentinel file — so it self-corrects: if the stack crashed and the container disappeared, the next run will start it again automatically.
+
+**Tasks 6b — Include validate.yml and status.yml (always)**  
+Run unconditionally on every playbook execution. `validate.yml` checks for containers in a bad state (`Exited` with non-zero code, `Restarting`, `Dead`). `status.yml` prints a `docker ps` table for operator confirmation.
+
+---
+
+## roles/deploy-adempiere/tasks/start.yml
+
+**Name:** `start.yml`  
+**Location:** `roles/deploy-adempiere/tasks/start.yml`
+
+**Description:**
+
+Runs `start-all.sh` — the shell script shipped inside the `adempiere-ui-gateway` repository that brings up the full Docker Compose stack.
+
+**Why `environment: PWD:`**  
+`ansible.builtin.command` does not spawn a shell, so standard shell environment variables — including `PWD` — are not set. Docker Compose uses `$PWD` internally to resolve relative paths in volume mounts. When `$PWD` is absent, Docker Compose warns and defaults to a blank string, causing relative paths to resolve incorrectly and containers to fail silently. Setting `PWD` explicitly to the same path as `chdir` restores the expected behaviour.
+
+**Why `environment: DOCKER_DEFAULT_PLATFORM:`**  
+Several images in the stack are published with a `linux/amd64/v2` manifest only — no plain `linux/amd64` entry. Docker 29+ treats the variant as a strict requirement and refuses to pull without an explicit platform hint. Docker 28 ignored this and pulled anyway. Setting `DOCKER_DEFAULT_PLATFORM` tells Docker Compose which variant to request. The value comes from `{{ docker_default_platform }}` (default: `linux/amd64/v2` in `roles/deploy-adempiere/defaults/main.yml`) and can be overridden per deployment. See also `known-issues.md` item 10.
+
+**Why `changed_when: true`**  
+`ansible.builtin.command` cannot detect whether the underlying operation made a change. `start-all.sh` always exits 0 whether or not it started new containers. Marking the task as always-changed is honest — the script was executed and the system state may have changed — and ensures Ansible handlers (if any) are notified.

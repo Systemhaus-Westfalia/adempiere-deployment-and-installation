@@ -241,28 +241,53 @@ STEP  TASK                               DETAIL
 
 ## 4. deploy-adempiere — Internal Task Flow
 
-`deploy-adempiere` runs on `BackEnd` only. It uses a status-file pattern to avoid re-running
-steps that already completed — useful when re-running the playbook after a partial failure.
+`deploy-adempiere` runs on `BackEnd` only.
+
+The relationship between the three main files is:
+
+```
+deploy-adempiere.yml
+  │  sets: hosts=BackEnd, become=true, connection credentials
+  │
+  └──> roles/deploy-adempiere/tasks/main.yml   (role entry point)
+         │  orchestrates all steps; reads defaults/main.yml and renders templates/
+         │
+         ├──> start.yml    (conditionally included — only if container not running)
+         │      runs start-all.sh to bring up the Docker Compose stack
+         │
+         ├──> wait.yml     (conditionally included — only if container not running)
+         │      polls docker ps until the container appears and is healthy
+         │
+         ├──> validate.yml (always included)
+         │      checks for containers in bad state (Exited/Restarting/Dead)
+         │
+         └──> status.yml   (always included)
+                prints docker ps table for operator confirmation
+```
+
+`deploy-adempiere.yml` contains no task logic — it only defines *where* to connect and *which role* to invoke. All task logic lives in `tasks/main.yml` and its sub-task files. `start.yml` is never called directly; it is always included by `main.yml` via `include_tasks`.
+
+The idempotency guard is based on real system state — not a sentinel file:
 
 ```
 STEP  TASK                               DETAIL
 ────  ─────────────────────────────────  ────────────────────────────────────────────────
-1     Gather network facts
-2     Ensure install directory exists
-3     Check git_status_file
-      ├── missing or content != "cloned"
-      │     3a. Clone adempiere-ui-gateway from GitHub
-      │     3b. Write "cloned" to status file
-      └── content == "cloned"            --> skip to step 4
-4     Generate override.env              rendered from override.env.j2 template
-5     Check run_status_file
-      ├── missing or content != "runned"
-      │     5a. start.yml   — docker compose up
-      │     5b. wait.yml    — wait for ADempiere port to respond
-      └── content == "runned"            --> skip to step 6
-6     validate.yml                       health checks
-7     status.yml                         write "runned" to status file
+1     Gather network facts               network subset only — used in override.env.j2
+2     Ensure install directory exists    /opt/development, owned by adempiere_username
+3     Clone or update repository         ansible.builtin.git, update: yes — always fetches
+                                         latest commits from {{ repo_version }} branch
+4     Generate override.env              rendered from override.env.j2, mode 0600
+5     Check if container is running      docker ps (running only, not -a)
+      ├── container absent
+      │     5a. start.yml   — run start-all.sh (docker compose up)
+      │     5b. wait.yml    — poll until container appears and is healthy
+      └── container present              --> skip 5a and 5b; stack already running
+6     validate.yml                       check for Exited/Restarting/Dead containers
+7     status.yml                         print docker ps table
 ```
+
+**Why real state instead of a sentinel file:**
+A sentinel file records what Ansible did, not what is actually true on the server. If the stack crashes after a successful deployment, the sentinel would say "runned" and the playbook would skip restart. The container-state check reflects actual reality: if the container is gone, the next run starts it again automatically — no manual file deletion required.
 
 ---
 
