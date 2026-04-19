@@ -1,4 +1,4 @@
-- name: Wait until container exists
+- name: Wait until container is created
   ansible.builtin.command: >
     docker ps -a --filter "name={{ adempiere_container_filter }}"
     --format "{{'{{'}}.Names{{'}}'}}"
