@@ -1,9 +1,8 @@
 - name: Run start-all.sh (bring up services)
   ansible.builtin.command: "./start-all.sh"
   args:
-    chdir: "{{ install_path }}/adempiere-ui-gateway/docker-compose/"
+    chdir: "{{ install_path }}/adempiere-ui-gateway/docker-compose"
   environment:
-    PWD: "{{ install_path }}/adempiere-ui-gateway/docker-compose/"
-    DOCKER_DEFAULT_PLATFORM: "{{ docker_default_platform }}"
+    PWD: "{{ install_path }}/adempiere-ui-gateway/docker-compose"
   register: start_all
   changed_when: true

@@ -60,24 +60,28 @@ curl -fsSL https://download.docker.com/linux/ubuntu/gpg | head -1
 
 ---
 
-## ADempiere container does not start (wait.yml times out)
+## ADempiere container does not start (ensure-healthy.yml times out)
 
 **Symptom:** Play fails in the `Wait until container is running` task after 30 retries (5 minutes).
 
 **Investigate on the BackEnd server:**
 ```bash
-docker ps -a | grep adempiere
-docker logs adempiere-ui-gateway
+sudo docker ps -a | grep adempiere
+sudo docker logs adempiere-ui-gateway
 cd /opt/development/adempiere-ui-gateway/docker-compose
-docker compose ps
-docker compose logs
+sudo docker compose ps
+sudo docker compose logs
 ```
 
 **Common causes:**
 - `override.env` was not generated (missing PostgreSQL credentials in vault)
-- `start-all.sh` failed silently — check its exit code
+- `start-all.sh` failed silently — run it manually to see its full output:
+  ```bash
+  cd /opt/development/adempiere-ui-gateway/docker-compose
+  sudo bash start-all.sh
+  ```
 - Not enough memory (ADempiere requires at least 4 GB RAM)
-- The git clone did not succeed — check `/opt/development/git_status.txt`
+- Existing Docker volumes conflict with the compose file — `start-all.sh` will prompt interactively; answer `N` to keep existing data
 
 ---
 

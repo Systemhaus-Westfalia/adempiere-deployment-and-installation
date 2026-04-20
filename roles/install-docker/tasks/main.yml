@@ -63,15 +63,34 @@
   ansible.builtin.apt:
     update_cache: yes
 
-- name: Install Docker and Docker Compose
+- name: Find latest Docker 28.x version available in apt
+  ansible.builtin.shell: >
+    apt-cache madison docker-ce | grep ' 5:28\.' | head -1 | awk '{print $3}'
+  register: docker_28_version
+  changed_when: false
+
+- name: Fail if no Docker 28.x package is available
+  ansible.builtin.fail:
+    msg: "No Docker 28.x package found in the configured apt repositories. Check that the Docker repo is reachable and the cache is up to date."
+  when: docker_28_version.stdout | trim == ''
+
+- name: Install Docker 28.x and Docker Compose
   ansible.builtin.package:
     name:
-        - docker-ce
-        - docker-ce-cli
+        - "docker-ce={{ docker_28_version.stdout | trim }}"
+        - "docker-ce-cli={{ docker_28_version.stdout | trim }}"
         - containerd.io
         - docker-buildx-plugin
         - docker-compose-plugin
     state: present
+
+- name: Hold Docker packages at 28.x to prevent automatic upgrade to 29+
+  ansible.builtin.dpkg_selections:
+    name: "{{ item }}"
+    selection: hold
+  loop:
+    - docker-ce
+    - docker-ce-cli
 
 - name: Ensure Docker service is enabled and started
   ansible.builtin.service:

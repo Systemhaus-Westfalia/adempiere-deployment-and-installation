@@ -1,0 +1,44 @@
+- name: Wait until container is created
+  ansible.builtin.command: >
+    docker ps -a --filter "name={{ adempiere_container_filter }}"
+    --format "{{'{{'}}.Names{{'}}'}}"
+  register: c_names
+  retries: 30
+  delay: 10
+  until: c_names.stdout is search(adempiere_container_filter)
+  changed_when: false
+
+- name: Wait until at least one stack container is running
+  ansible.builtin.command: >
+    docker ps --filter "name={{ adempiere_container_filter }}"
+    --format "{{'{{'}}.Names{{'}}'}}"
+  register: c_running
+  retries: 30
+  delay: 10
+  until: c_running.stdout | trim != ''
+  changed_when: false
+  ignore_errors: true
+
+- name: Check if nginx gateway exited (first-run timing issue)
+  ansible.builtin.command: >
+    docker inspect -f "{{'{{'}}.State.ExitCode{{'}}'}}"
+    adempiere-ui-gateway.nginx-ui-gateway
+  register: nginx_exit
+  changed_when: false
+  ignore_errors: true
+
+- name: Restart nginx gateway if it exited on first run
+  ansible.builtin.command: docker restart adempiere-ui-gateway.nginx-ui-gateway
+  when: nginx_exit.stdout | trim == "1"
+  changed_when: true
+
+- name: Wait until nginx gateway is running
+  ansible.builtin.command: >
+    docker inspect -f "{{'{{'}}.State.Status{{'}}'}}"
+    adempiere-ui-gateway.nginx-ui-gateway
+  register: nginx_state
+  retries: 15
+  delay: 5
+  until: nginx_state.stdout | trim == "running"
+  changed_when: false
+  when: nginx_exit.stdout | trim == "1"

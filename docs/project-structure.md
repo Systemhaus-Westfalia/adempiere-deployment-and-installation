@@ -64,7 +64,7 @@ Every role follows the standard Ansible role structure:
 ```
 roles/<role-name>/
 ├── tasks/
-│   └── main.yml        # Entry point; some roles include sub-task files (start.yml, wait.yml…)
+│   └── main.yml        # Entry point; some roles include sub-task files (start.yml, ensure-healthy.yml…)
 ├── defaults/
 │   └── main.yml        # Lowest-priority variables — safe fallbacks the operator is expected to override
 │                       # (e.g. install_path, repo_url, repo_version)

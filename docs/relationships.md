@@ -255,8 +255,9 @@ deploy-adempiere.yml
          ├──> start.yml    (conditionally included — only if container not running)
          │      runs start-all.sh to bring up the Docker Compose stack
          │
-         ├──> wait.yml     (conditionally included — only if container not running)
-         │      polls docker ps until the container appears and is healthy
+         ├──> ensure-healthy.yml  (conditionally included — only if container not running)
+         │      polls until container is created and running; restarts nginx if it
+         │      crashed due to a first-run DNS timing issue
          │
          ├──> validate.yml (always included)
          │      checks for containers in bad state (Exited/Restarting/Dead)
@@ -280,7 +281,8 @@ STEP  TASK                               DETAIL
 5     Check if container is running      docker ps (running only, not -a)
       ├── container absent
       │     5a. start.yml   — run start-all.sh (docker compose up)
-      │     5b. wait.yml    — poll until container appears and is healthy
+      │     5b. ensure-healthy.yml — poll until container appears and is running;
+      │                              restart nginx if it crashed on first run
       └── container present              --> skip 5a and 5b; stack already running
 6     validate.yml                       check for Exited/Restarting/Dead containers
 7     status.yml                         print docker ps table
