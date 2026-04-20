@@ -1,3 +1,7 @@
+- name: "INFO: Wait until container is created"
+  ansible.builtin.debug:
+    msg: "filter={{ adempiere_container_filter }} | retries=30 | delay=10s"
+
 - name: Wait until container is created
   ansible.builtin.command: >
     docker ps -a --filter "name={{ adempiere_container_filter }}"
@@ -7,6 +11,10 @@
   delay: 10
   until: c_names.stdout is search(adempiere_container_filter)
   changed_when: false
+
+- name: "INFO: Wait until at least one stack container is running"
+  ansible.builtin.debug:
+    msg: "filter={{ adempiere_container_filter }} | retries=30 | delay=10s"
 
 - name: Wait until at least one stack container is running
   ansible.builtin.command: >
@@ -26,6 +34,11 @@
   register: nginx_exit
   changed_when: false
   ignore_errors: true
+
+- name: "INFO: Restart nginx gateway if it exited on first run"
+  ansible.builtin.debug:
+    msg: "nginx exit code={{ nginx_exit.stdout | trim }} | restarting adempiere-ui-gateway.nginx-ui-gateway"
+  when: nginx_exit.stdout | trim == "1"
 
 - name: Restart nginx gateway if it exited on first run
   ansible.builtin.command: docker restart adempiere-ui-gateway.nginx-ui-gateway

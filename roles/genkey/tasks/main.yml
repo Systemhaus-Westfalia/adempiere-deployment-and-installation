@@ -1,12 +1,20 @@
 #SPDX-License-Identifier: MIT-0
 ---
 # tasks file for roles/genkey
+- name: "INFO: Ensure ssh_keys directory exists"
+  ansible.builtin.debug:
+    msg: "path={{ playbook_dir }}/ssh_keys | mode=0700"
+
 - name: Ensure ssh_keys directory exists inside the project
   ansible.builtin.file:
     path: "{{ playbook_dir }}/ssh_keys"
     state: directory
     mode: '0700'
   check_mode: false
+
+- name: "INFO: Ensure the project SSH keypair exists"
+  ansible.builtin.debug:
+    msg: "path={{ playbook_dir }}/ssh_keys/{{ key_name }} | type=rsa | size={{ key_size }}"
 
 - name: Ensure the project SSH keypair exists
   community.crypto.openssh_keypair:
@@ -16,6 +24,10 @@
     state: present
     comment: "adempiere-deployment-key"
   register: ssh_key_info
+
+- name: "INFO: Copy public key to serversconf role"
+  ansible.builtin.debug:
+    msg: "src=ssh_keys/{{ key_name }}.pub | dest=roles/serversconf/files/public_keys/present/admin/{{ key_name }}.pub"
 
 # In --check mode the keypair was not actually written, so the src does not exist yet — ignore the expected failure.
 - name: Copy public key to serversconf role

@@ -1,3 +1,7 @@
+- name: "INFO: Run start-all.sh"
+  ansible.builtin.debug:
+    msg: "chdir={{ install_path }}/adempiere-ui-gateway/docker-compose | PWD={{ install_path }}/adempiere-ui-gateway/docker-compose"
+
 - name: Run start-all.sh (bring up services)
   ansible.builtin.command: "./start-all.sh"
   args:

@@ -40,10 +40,18 @@
 ##
 ---
 # tasks file for roles/deploy-adempiere
+- name: "INFO: Gather network facts"
+  ansible.builtin.debug:
+    msg: "host={{ inventory_hostname }} | gathering network subset"
+
 - name: Gather network facts
   ansible.builtin.setup:
     gather_subset:
       - network
+
+- name: "INFO: Ensure development directory exists"
+  ansible.builtin.debug:
+    msg: "path={{ install_path }} | owner={{ be_user }} | mode=0755"
 
 - name: Ensure development directory exists
   ansible.builtin.file:
@@ -53,6 +61,10 @@
     group: "{{ be_user }}"
     mode: "0755"
   become: true
+
+- name: "INFO: Clone or update adempiere-ui-gateway repository"
+  ansible.builtin.debug:
+    msg: "repo={{ repo_url }} | branch={{ repo_version }} | dest={{ install_path }}/adempiere-ui-gateway"
 
 - name: Clone or update adempiere-ui-gateway repository
   ansible.builtin.git:
@@ -64,6 +76,10 @@
   become: yes
   become_user: "{{ be_user }}"
 
+- name: "INFO: Generate override.env file"
+  ansible.builtin.debug:
+    msg: "dest={{ install_path }}/adempiere-ui-gateway/docker-compose/override.env | owner={{ be_user }} | mode=0600"
+
 - name: Generate override.env file
   ansible.builtin.template:
     src: override.env.j2
@@ -71,6 +87,10 @@
     owner: "{{ be_user }}"
     group: "{{ be_user }}"
     mode: "0600"
+
+- name: "INFO: Check if ADempiere container is already running"
+  ansible.builtin.debug:
+    msg: "filter={{ adempiere_container_filter }}"
 
 - name: Check if ADempiere container is already running
   ansible.builtin.command: >

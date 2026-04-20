@@ -1,6 +1,10 @@
 #SPDX-License-Identifier: MIT-0
 ---
 # tasks file for roles/install-docker
+- name: "INFO: Validate supported OS"
+  ansible.builtin.debug:
+    msg: "distribution={{ ansible_facts['distribution'] }} | os_family={{ ansible_facts['os_family'] }}"
+
 - name: Validate supported OS (Debian/Ubuntu)
   ansible.builtin.assert:
     that:
@@ -19,9 +23,17 @@
         else ansible_facts['architecture']
       }}
 
+- name: "INFO: Docker repo configuration resolved"
+  ansible.builtin.debug:
+    msg: "repo={{ docker_repo_base }} | gpg={{ docker_gpg_url }} | arch={{ docker_arch }}"
+
 - name: Update apt cache
   ansible.builtin.apt:
     update_cache: yes
+
+- name: "INFO: Ensure dependencies are installed"
+  ansible.builtin.debug:
+    msg: "packages=bc,curl,expect,git,ca-certificates,python3-debian"
 
 - name: Ensure dependencies are installed
   ansible.builtin.package:
@@ -34,11 +46,19 @@
         - python3-debian
     state: present
 
+- name: "INFO: Create Docker GPG key directory"
+  ansible.builtin.debug:
+    msg: "path=/etc/apt/keyrings | mode=0755"
+
 - name: Create Docker GPG key directory
   ansible.builtin.file:
     path: /etc/apt/keyrings
     state: directory
     mode: "0755"
+
+- name: "INFO: Download Docker's official GPG key"
+  ansible.builtin.debug:
+    msg: "url={{ docker_gpg_url }} | dest=/etc/apt/keyrings/docker.asc"
 
 - name: Download Docker's official GPG key
   ansible.builtin.get_url:
@@ -46,22 +66,28 @@
     dest: /etc/apt/keyrings/docker.asc
     mode: "0644"
 
+- name: "INFO: Add Docker repository to Apt sources"
+  ansible.builtin.debug:
+    msg: "repo={{ docker_repo_base }} | suite={{ ansible_facts['distribution_release'] }} | arch={{ docker_arch }}"
+
 - name: Add Docker repository to Apt sources
   ansible.builtin.deb822_repository:
     name: docker
     types: [deb]
     uris: "{{ docker_repo_base }}"
-    # Corregimos los facts aquí
     suites: ["{{ ansible_facts['distribution_release'] }}"]
     components: [stable]
     signed_by: /etc/apt/keyrings/docker.asc
-    # Docker espera 'amd64', Ansible dice 'x86_64'. Este filtro lo corrige:
     architectures: "{{ 'amd64' if ansible_facts['architecture'] == 'x86_64' else ansible_facts['architecture'] }}"
     state: present
 
 - name: Update apt cache after adding Docker repository
   ansible.builtin.apt:
     update_cache: yes
+
+- name: "INFO: Find latest Docker 28.x version"
+  ansible.builtin.debug:
+    msg: "searching apt-cache madison for Docker 5:28.x"
 
 - name: Find latest Docker 28.x version available in apt
   ansible.builtin.shell: >
@@ -74,6 +100,10 @@
     msg: "No Docker 28.x package found in the configured apt repositories. Check that the Docker repo is reachable and the cache is up to date."
   when: docker_28_version.stdout | trim == ''
 
+- name: "INFO: Install Docker 28.x and Docker Compose"
+  ansible.builtin.debug:
+    msg: "version={{ docker_28_version.stdout | trim }} | packages=docker-ce,docker-ce-cli,containerd.io,buildx-plugin,compose-plugin"
+
 - name: Install Docker 28.x and Docker Compose
   ansible.builtin.package:
     name:
@@ -84,6 +114,10 @@
         - docker-compose-plugin
     state: present
 
+- name: "INFO: Hold Docker packages at 28.x"
+  ansible.builtin.debug:
+    msg: "holding docker-ce and docker-ce-cli at 28.x to prevent upgrade to 29+"
+
 - name: Hold Docker packages at 28.x to prevent automatic upgrade to 29+
   ansible.builtin.dpkg_selections:
     name: "{{ item }}"
@@ -92,17 +126,29 @@
     - docker-ce
     - docker-ce-cli
 
+- name: "INFO: Ensure Docker service is enabled and started"
+  ansible.builtin.debug:
+    msg: "service=docker | state=started | enabled=yes"
+
 - name: Ensure Docker service is enabled and started
   ansible.builtin.service:
     name: docker
     state: started
     enabled: yes
 
+- name: "INFO: Create /docker directory"
+  ansible.builtin.debug:
+    msg: "path=/docker | mode=0755"
+
 - name: Create docke directory if it does not exist
   ansible.builtin.file:
     path: /docker
     state: directory
     mode: '0755'
+
+- name: "INFO: Ensure docker group exists"
+  ansible.builtin.debug:
+    msg: "group=docker"
 
 - name: Ensure docker group exists
   ansible.builtin.group:
