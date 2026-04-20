@@ -31,6 +31,14 @@
 
 set -euo pipefail
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+LOG_DIR="$SCRIPT_DIR/logs"
+mkdir -p "$LOG_DIR"
+LOGFILE="$LOG_DIR/deploy-backend-$(date +%Y%m%d-%H%M%S).log"
+exec > >(tee -a "$LOGFILE") 2>&1
+echo "Output is logged to: $LOGFILE"
+echo ""
+
 CHECK=""
 if [[ "${1:-}" == "--check" ]]; then
   CHECK="--check"
@@ -60,7 +68,6 @@ else
   echo ""
 fi
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 KEY_PATH="$SCRIPT_DIR/ssh_keys/adempiere_installation_key"
 
 # Step 0 — Delete old keypair (skipped in check mode)
