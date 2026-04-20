@@ -1,6 +1,10 @@
 #SPDX-License-Identifier: MIT-0
 ---
 # tasks file for roles/deploy-vim
+- name: "INFO: Install vim dependencies"
+  ansible.builtin.debug:
+    msg: "target={{ inventory_hostname }} | packages=git,fonts-powerline,fzf"
+
 - name: Install vim
   ansible.builtin.package:
     name:
@@ -10,7 +14,11 @@
         - fzf
     state: present
   become: yes
-  
+
+- name: "INFO: Ensure .vim directory structure exists"
+  ansible.builtin.debug:
+    msg: "dirs={{ vim_dir }}, {{ vim_dir }}/autoload, {{ vim_dir }}/bundle | mode=0750"
+
 - name: Ensure .vim/{autoload,bundle} directory exists
   file:
     path: "{{ item }}"
@@ -21,12 +29,20 @@
     - "{{ vim_dir }}"
     - "{{ vim_dir }}/autoload"
     - "{{ vim_dir }}/bundle"
-    
+
+- name: "INFO: Ensure Pathogen is in place"
+  ansible.builtin.debug:
+    msg: "dest={{ vim_dir }}/autoload/pathogen.vim"
+
 - name: Ensure Pathogen is in place
   get_url:
     dest: "{{ vim_dir }}/autoload/pathogen.vim"
     url: https://tpo.pe/pathogen.vim
-    
+
+- name: "INFO: Deploy vim plugins"
+  ansible.builtin.debug:
+    msg: "dest={{ vim_dir }}/bundle/ | plugins=vim-airline,nerdtree,fzf-vim,vim-gitgutter,vim-fugitive,vim-floaterm"
+
 - name: Deploy plugins
   git:
     dest: "{{ vim_dir }}/bundle/{{ item.name }}"
@@ -47,6 +63,10 @@
       url: https://github.com/tpope/vim-fugitive
     - name: vim-floaterm
       url: https://github.com/voldikss/vim-floaterm
+
+- name: "INFO: Ensure .vimrc config in place"
+  ansible.builtin.debug:
+    msg: "dest={{ vimrc }}"
 
 - name: Ensure .vimrc config in place
   copy:

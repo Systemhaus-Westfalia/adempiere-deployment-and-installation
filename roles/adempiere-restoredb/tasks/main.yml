@@ -5,9 +5,21 @@
   set_fact:
     decompressed_file: "{{ remote_gz_path[:-3] }}"
 
+- name: "INFO: Decompressed filename resolved"
+  ansible.builtin.debug:
+    msg: "decompressed_file={{ decompressed_file }}"
+
 - name: Set destinaton filename
   set_fact:
     detination_file: "{{ backup_name[:-3] }}"
+
+- name: "INFO: Destination filename resolved"
+  ansible.builtin.debug:
+    msg: "destination_file={{ detination_file }}"
+
+- name: "INFO: Ensure PostgreSQL client is installed"
+  ansible.builtin.debug:
+    msg: "target={{ inventory_hostname }} | packages=postgresql-client,python3-psycopg2"
 
 - name: Ensure PostgreSQL client is installed on host
   ansible.builtin.apt:
@@ -18,10 +30,19 @@
     update_cache: yes
   become: true
 
+- name: "INFO: Check backup file exists on host"
+  ansible.builtin.debug:
+    msg: "path={{ extract_destination }}/{{ detination_file }}"
+
 - name: Check backup file exists on host
   ansible.builtin.stat:
     path: "{{ extract_destination }}/{{ detination_file }}"
   register: backup_stat
+
+- name: "INFO: Copy backup package"
+  ansible.builtin.debug:
+    msg: "src=files/{{ backup_name }} | dest={{ remote_gz_path }} | owner={{ adempiere_username }}"
+  when: not backup_stat.stat.exists
 
 - name: Copy backup package
   copy:
@@ -32,8 +53,18 @@
     mode: '0644'
   when: not backup_stat.stat.exists
 
+- name: "INFO: Decompress file"
+  ansible.builtin.debug:
+    msg: "gzip -d {{ remote_gz_path }}"
+  when: not backup_stat.stat.exists
+
 - name: Decompress file
   command: gzip -d "{{ remote_gz_path }}"
+  when: not backup_stat.stat.exists
+
+- name: "INFO: Move decompressed file to final destination"
+  ansible.builtin.debug:
+    msg: "src={{ decompressed_file }} | dest={{ extract_destination }}/{{ detination_file }}"
   when: not backup_stat.stat.exists
 
 - name: Move decompressed file to final destination
@@ -52,6 +83,10 @@
     msg: "Backup file not found: {{ extract_destination }}/{{ detination_file }}"
   when: not backup_stat_after.stat.exists
 
+- name: "INFO: Create database"
+  ansible.builtin.debug:
+    msg: "db={{ adempiere_db }} | owner={{ adempiere_owner }} | host={{ pg_host }}:{{ pg_port }}"
+
 - name: Create database adempiere
   community.postgresql.postgresql_db:
     name: "{{ adempiere_db }}"
@@ -61,6 +96,10 @@
     login_user: "{{ pg_superuser }}"
     login_password: "{{ postgres_password }}"
     state: present
+
+- name: "INFO: Ensure adempiere database user exists"
+  ansible.builtin.debug:
+    msg: "user={{ adempiere_owner }} | host={{ pg_host }}:{{ pg_port }} | role_attr_flags=CREATEDB,NOSUPERUSER"
 
 - name: Ensure adempiere database user exists with correct password
   community.postgresql.postgresql_user:
@@ -72,6 +111,10 @@
     login_user: "{{ pg_superuser }}"
     login_password: "{{ postgres_password }}"
     state: present
+
+- name: "INFO: Restore SQL dump"
+  ansible.builtin.debug:
+    msg: "db={{ adempiere_db }} | source={{ extract_destination }}/{{ detination_file }} | host={{ pg_host }}:{{ pg_port }}"
 
 - name: Restore SQL dump into adempiere database
   community.postgresql.postgresql_db:
