@@ -11,7 +11,7 @@
 ./deploy-backend.sh --check   # dry run — shows what would change, no writes
 ```
 
-Use `deploy-backend.sh` after resetting the backend server. It deletes the old SSH keypair, regenerates it, and runs all playbooks in the correct order. See [files-explained.md](files-explained.md) for details.
+Use `deploy-backend.sh` after resetting the backend server. It deletes the old SSH keypair, regenerates it, removes the stale SSH host key from `~/.ssh/known_hosts`, and runs all playbooks in the correct order. See [files-explained.md](files-explained.md) for details.
 
 ---
 

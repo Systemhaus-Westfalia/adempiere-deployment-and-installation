@@ -113,3 +113,12 @@
   with_items:
     - validate.yml
     - status.yml
+
+- name: "INFO: Restart nginx to re-resolve upstream hostnames"
+  ansible.builtin.debug:
+    msg: "container={{ adempiere_container_filter }}.nginx-ui-gateway | reason=force DNS re-resolution after stack startup"
+
+- name: Restart nginx to re-resolve upstream hostnames
+  ansible.builtin.command: >
+    docker restart {{ adempiere_container_filter }}.nginx-ui-gateway
+  changed_when: true

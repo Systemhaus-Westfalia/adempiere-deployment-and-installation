@@ -10,7 +10,7 @@
 # BEFORE RUNNING:
 #   1. Reset the backend server (all data will be lost).
 #   2. Confirm the server is reachable on port 22 as root with password auth.
-#   3. Ensure vault password file / ANSIBLE_VAULT_PASSWORD_FILE is configured.
+#   3. Ensure ~/.vault_pass.txt exists (configured via vault_password_file in ansible.cfg).
 #
 # WHAT THIS SCRIPT DOES:
 #   Step 0  Delete the existing SSH keypair from ssh_keys/ on this control node.
@@ -54,7 +54,7 @@ else
   echo ""
   echo "  Prerequisites:"
   echo "    - Backend server has been RESET (fresh, port 22, root+password)"
-  echo "    - Vault password is available (ANSIBLE_VAULT_PASSWORD_FILE set)"
+  echo "    - ~/.vault_pass.txt exists (used automatically via ansible.cfg)"
   echo ""
   echo "  The existing SSH keypair in ssh_keys/ will be DELETED and"
   echo "  regenerated. This is intentional after a server reset."
@@ -65,6 +65,26 @@ else
     exit 1
   fi
   echo "================================================================"
+  echo ""
+fi
+
+# Pre-flight: vault password file must exist (ansible.cfg references ~/.vault_pass.txt)
+if [[ ! -f "$HOME/.vault_pass.txt" ]]; then
+  echo "ERROR: ~/.vault_pass.txt not found."
+  echo "       Create it with your vault password before running this script."
+  exit 1
+fi
+
+# Pre-flight: remove stale host key for the backend server from known_hosts.
+# Required after a server reset — the host presents a new key and SSH would refuse to connect.
+BACKEND_IP=$(ansible-inventory --host backend 2>/dev/null \
+  | python3 -c "import sys,json; print(json.load(sys.stdin).get('ansible_host',''))" 2>/dev/null)
+if [[ -n "$BACKEND_IP" ]]; then
+  echo ">>> Pre-flight: removing stale known_hosts entry for $BACKEND_IP"
+  ssh-keygen -f "$HOME/.ssh/known_hosts" -R "$BACKEND_IP" 2>/dev/null || true
+  echo ""
+else
+  echo "WARNING: could not determine backend IP from inventory — skipping known_hosts cleanup."
   echo ""
 fi
 
