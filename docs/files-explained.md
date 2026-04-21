@@ -492,3 +492,66 @@ All three tasks are guarded by `when: nginx_exit.stdout | trim == "1"`. If nginx
 Final health check, run unconditionally on every playbook execution (including re-runs where containers were already running). Fails the play immediately if either critical container is not in `running` state.
 
 Uses `docker inspect -f '{{.State.Status}}'` on `adempiere-ui-gateway.postgresql` and `adempiere-ui-gateway.zk` directly — the same `docker inspect` approach as `wait.yml`, avoiding any `docker ps -a` pipeline that could hang. `failed_when` combines a non-zero exit code (container not found) with a non-`running` status string, so both "container missing" and "container in wrong state" are caught as failures.
+
+---
+
+## adempiere-restoredb.yml and roles/adempiere-restoredb/tasks/main.yml
+
+**Name:** `adempiere-restoredb.yml`  
+**Location:** `adempiere-restoredb.yml` (playbook), `roles/adempiere-restoredb/tasks/main.yml` (tasks)
+
+**Description:**
+
+Restores a PostgreSQL database backup into the ADempiere database on the BackEnd server. This is a **destructive, on-demand operation** — not part of the normal deployment. Run it only when initializing a server from a backup.
+
+**How to invoke:**
+
+1. Set the two operator variables in `group_vars/all/vars.yml`:
+   - `restore_backup_filename` — filename of the backup (e.g. `Mini-PC-20260421.sql.gz`)
+   - `restore_local_dir` — absolute path to the directory on the control node where the file lives
+
+2. Run:
+   ```bash
+   ansible-playbook adempiere-restoredb.yml
+   ```
+
+The backup file is never committed to the repository — download it to any local directory on the control node and point `restore_local_dir` to it.
+
+**Task sequence:**
+
+| # | Task | What it does |
+|---|---|---|
+| 1 | `set_fact: restore_dump_filename` | Derives the decompressed filename from `restore_backup_filename` — strips `.tar.gz` and appends `.sql`, or strips `.gz` |
+| 2 | INFO: configuration summary | Prints source, destination, detected format, dump filename, DB config |
+| 3 | INFO + Install PostgreSQL client | Installs `postgresql-client` and `python3-psycopg2` on the backend host |
+| 4 | Check archive exists on backend | `stat` — determines whether copy step can be skipped |
+| 5 | INFO + Copy backup file | Copies from `restore_local_dir/restore_backup_filename` on control node to `restore_remote_backup_dir/restore_backup_filename` on backend; skipped if file already present |
+| 6 | Check dump file exists on backend | `stat` — determines whether decompression can be skipped |
+| 7 | INFO + Decompress (tar.gz or gz) | `tar -xzf` for `.tar.gz`; `gzip -dk` for `.gz` — `-dk` keeps the archive; skipped if dump already present |
+| 8 | Verify dump file exists | Fails immediately if decompression did not produce the expected file |
+| 9 | INFO + Create database | `community.postgresql.postgresql_db state: present` — idempotent |
+| 10 | INFO + Create database user | `community.postgresql.postgresql_user` — creates `adempiere` user with `CREATEDB,NOSUPERUSER`; idempotent |
+| 11 | INFO + Restore dump | `community.postgresql.postgresql_db state: restore` — **destructive**, overwrites existing data |
+| 12 | INFO + Clean up | Always removes the decompressed dump (working file); removes the archive only if `keep_restore_file: false` |
+
+**Format auto-detection:**
+
+The role checks `.tar.gz` first (before `.gz`) because a `.tar.gz` filename also ends with `.gz` — checking `.gz` first would misidentify a tar archive and run `gzip -d` on it, which would fail. The dump filename is derived automatically — no separate variable needed.
+
+| Filename | Detected format | Decompression | Resulting dump |
+|---|---|---|---|
+| `foo.sql.gz` | gz | `gzip -dk` | `foo.sql` |
+| `foo.tar.gz` | tar.gz | `tar -xzf` | `foo.sql` (by convention) |
+
+**Variables (all global, all in `group_vars/all/vars.yml` or vault):**
+
+| Variable | Where | Purpose |
+|---|---|---|
+| `restore_backup_filename` | `vars.yml` | Filename of the backup on the control node |
+| `restore_local_dir` | `vars.yml` | Directory on the control node containing the backup |
+| `restore_remote_backup_dir` | `vars.yml` | Canonical backup directory on the backend server |
+| `keep_restore_file` | `vars.yml` | Keep the archive after restore (default: `true`) |
+| `pg_host`, `pg_port`, `pg_superuser` | `vars.yml` | PostgreSQL connection |
+| `adempiere_db`, `adempiere_owner` | `vars.yml` | Database and user name |
+| `postgres_password` | `vault.yml` | Password for the `postgres` superuser |
+| `adempiere_db_password` | `vault.yml` | Password for the `adempiere` database user |

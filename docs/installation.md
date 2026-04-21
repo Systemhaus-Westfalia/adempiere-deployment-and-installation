@@ -192,7 +192,7 @@ Only needed when initializing from a backup — not part of a normal deployment.
 ansible-playbook adempiere-restoredb.yml
 ```
 
-Place your `.sql.gz` file in `roles/adempiere-restoredb/files/` and update `backup_name` in `roles/adempiere-restoredb/defaults/main.yml` before running.
+Set `restore_backup_filename` and `restore_local_dir` in `group_vars/all/vars.yml` to point to your backup file on the control node, then run the playbook.
 
 See [operations.md](operations.md) for details.
 

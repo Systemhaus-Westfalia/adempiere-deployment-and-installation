@@ -134,22 +134,28 @@ ansible-playbook so-updates.yml
 
 ## Restoring a PostgreSQL Database from Backup
 
-1. Place the backup file (`.sql.gz`) in:
-   ```
-   roles/adempiere-restoredb/files/
-   ```
+1. Download the backup file to any directory on the control node.
 
-2. Update the backup file name in `roles/adempiere-restoredb/defaults/main.yml`:
+2. Set the two operator-facing variables in `group_vars/all/vars.yml`:
    ```yaml
-   backup_name: your-backup-file.sql.gz
+   restore_backup_filename: "your-backup-file.sql.gz"
+   restore_local_dir: "/path/to/directory/on/control/node"
    ```
+   Supported formats: `.sql.gz` and `.tar.gz` — the role detects the format automatically.
 
 3. Run the restore:
    ```bash
    ansible-playbook adempiere-restoredb.yml
    ```
 
-What it does: copies the file to `/tmp` on the server, decompresses it, moves it to the PostgreSQL backups directory, creates the `adempiere` database and user, then restores the dump using the `postgres` superuser.
+What it does:
+- Copies the backup file from the control node to the canonical PostgreSQL backups directory on the backend server
+- Decompresses the archive (auto-detected: `gzip -dk` for `.gz`, `tar -xzf` for `.tar.gz`)
+- Creates the `adempiere` database and user if they do not exist
+- Restores the dump using the `postgres` superuser (destructive — overwrites existing data)
+- Removes the decompressed dump file; keeps the archive if `keep_restore_file: true` (default)
+
+The restore runs against the live stack — no need to stop containers beforehand.
 
 ---
 
