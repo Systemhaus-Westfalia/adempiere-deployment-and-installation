@@ -12,43 +12,68 @@
   until: c_names.stdout is search(adempiere_container_filter)
   changed_when: false
 
-- name: "INFO: Wait until at least one stack container is running"
+- name: "INFO: Wait until all non-ephemeral containers are running or healthy"
   ansible.builtin.debug:
-    msg: "filter={{ adempiere_container_filter }} | retries=30 | delay=10s"
+    msg: "filter={{ adempiere_container_filter }} | excluding nginx (expected to exit on first run) | retries=30 | delay=10s"
 
-- name: Wait until at least one stack container is running
-  ansible.builtin.command: >
-    docker ps --filter "name={{ adempiere_container_filter }}"
-    --format "{{'{{'}}.Names{{'}}'}}"
-  register: c_running
+- name: Wait until all non-ephemeral containers are running or healthy
+  ansible.builtin.shell: |
+    set -o pipefail
+    docker ps -a --filter "name={{ adempiere_container_filter }}" \
+      --format "{{'{{'}}.Names{{'}}'}}\t{{'{{'}}.Status{{'}}'}}" \
+    | grep -v "nginx-ui-gateway" \
+    | grep -E "Exited \([1-9]|Restarting|Dead" -q
+  register: non_nginx_state
+  failed_when: non_nginx_state.rc == 0
+  changed_when: false
   retries: 30
   delay: 10
-  until: c_running.stdout | trim != ''
+  until: non_nginx_state.rc != 0
+
+- name: "INFO: Wait until ZK has been running stably for at least 60 seconds"
+  ansible.builtin.debug:
+    msg: "waiting for {{ adempiere_container_filter }}.zk to be stable (running >= 60s) | retries=20 | delay=10s"
+
+- name: Wait until ZK has been running stably for at least 60 seconds
+  ansible.builtin.shell: |
+    status=$(docker inspect -f '{{"{{"}}.State.Running{{"}}"}}' {{ adempiere_container_filter }}.zk 2>/dev/null)
+    [ "$status" != "true" ] && exit 1
+    started=$(docker inspect -f '{{"{{"}}.State.StartedAt{{"}}"}}' {{ adempiere_container_filter }}.zk)
+    uptime=$(( $(date +%s) - $(date -d "$started" +%s) ))
+    [ "$uptime" -ge 60 ]
+  register: zk_stable
+  retries: 20
+  delay: 10
+  until: zk_stable.rc == 0
   changed_when: false
-  ignore_errors: true
 
 - name: Check if nginx gateway exited (first-run timing issue)
   ansible.builtin.command: >
     docker inspect -f "{{'{{'}}.State.ExitCode{{'}}'}}"
-    adempiere-ui-gateway.nginx-ui-gateway
+    {{ adempiere_container_filter }}.nginx-ui-gateway
   register: nginx_exit
   changed_when: false
   ignore_errors: true
 
 - name: "INFO: Restart nginx gateway if it exited on first run"
   ansible.builtin.debug:
-    msg: "nginx exit code={{ nginx_exit.stdout | trim }} | restarting adempiere-ui-gateway.nginx-ui-gateway"
+    msg: "nginx exit code={{ nginx_exit.stdout | trim }} | restarting {{ adempiere_container_filter }}.nginx-ui-gateway"
   when: nginx_exit.stdout | trim == "1"
 
 - name: Restart nginx gateway if it exited on first run
-  ansible.builtin.command: docker restart adempiere-ui-gateway.nginx-ui-gateway
+  ansible.builtin.command: docker restart {{ adempiere_container_filter }}.nginx-ui-gateway
   when: nginx_exit.stdout | trim == "1"
   changed_when: true
+
+- name: "INFO: Wait until nginx gateway is running"
+  ansible.builtin.debug:
+    msg: "waiting for {{ adempiere_container_filter }}.nginx-ui-gateway to be running | retries=15 | delay=5s"
+  when: nginx_exit.stdout | trim == "1"
 
 - name: Wait until nginx gateway is running
   ansible.builtin.command: >
     docker inspect -f "{{'{{'}}.State.Status{{'}}'}}"
-    adempiere-ui-gateway.nginx-ui-gateway
+    {{ adempiere_container_filter }}.nginx-ui-gateway
   register: nginx_state
   retries: 15
   delay: 5
