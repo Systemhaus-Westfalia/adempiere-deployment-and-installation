@@ -154,9 +154,22 @@ What it does:
 - Decompresses the archive (auto-detected: `gzip -dk` for `.gz`, `tar -xzf` for `.tar.gz`)
 - Creates the `adempiere` database and user if they do not exist
 - Restores the dump using the `postgres` superuser (destructive — overwrites existing data)
+- Optionally executes a post-restore SQL script (see below)
 - Removes the decompressed dump file; keeps the archive if `keep_restore_file: true` (default)
 
 The restore runs against the live stack — no need to stop containers beforehand.
+
+**Optional post-restore SQL script:**
+
+Some environments require a SQL script to run immediately after the restore (e.g. to apply environment-specific patches). To enable it, set the following variables in `group_vars/all/vars.yml`:
+
+```yaml
+post_restore_sql_enabled: true
+post_restore_sql_filename: "20260215-my-patch.sql"
+post_restore_sql_local_dir: "/path/to/script/on/control/node"
+```
+
+The script is copied from the control node to `post_restore_sql_remote_dir` on the backend, executed against the `adempiere` database as the `postgres` superuser, then removed. The `restore-db.sh` confirmation screen shows whether the SQL script is enabled and verifies it exists before asking for confirmation.
 
 ---
 

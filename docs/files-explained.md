@@ -20,7 +20,7 @@ Shell script that restores a PostgreSQL database backup into the ADempiere datab
 
 **What it does before running the playbook:**
 
-1. Reads `restore_backup_filename`, `restore_local_dir`, `restore_remote_backup_dir`, `keep_restore_file`, `pg_host`, `pg_port`, `pg_superuser`, `adempiere_db`, `adempiere_owner` directly from `group_vars/all/vars.yml`
+1. Reads `restore_backup_filename`, `restore_local_dir`, `restore_remote_backup_dir`, `keep_restore_file`, `pg_superuser`, `pg_container`, `adempiere_db`, `adempiere_owner` directly from `group_vars/all/vars.yml`
 2. Resolves `{{ install_path }}` in `restore_remote_backup_dir` if present
 3. Detects the backup format (`.tar.gz` or `.gz`) and derives the dump filename
 4. Verifies the backup file exists on the control node — aborts immediately if not found
@@ -545,20 +545,20 @@ The backup file is never committed to the repository — download it to any loca
 
 **Task sequence:**
 
+All PostgreSQL operations run via `docker exec psql` inside the container, using Unix socket trust auth — no TCP connection, no password required for the connection itself.
+
 | # | Task | What it does |
 |---|---|---|
-| 1 | `set_fact: restore_dump_filename` | Derives the decompressed filename from `restore_backup_filename` — strips `.tar.gz` and appends `.sql`, or strips `.gz` |
-| 2 | INFO: configuration summary | Prints source, destination, detected format, dump filename, DB config |
-| 3 | INFO + Install PostgreSQL client | Installs `postgresql-client` and `python3-psycopg2` on the backend host |
-| 4 | Check archive exists on backend | `stat` — determines whether copy step can be skipped |
-| 5 | INFO + Copy backup file | Copies from `restore_local_dir/restore_backup_filename` on control node to `restore_remote_backup_dir/restore_backup_filename` on backend; skipped if file already present |
-| 6 | Check dump file exists on backend | `stat` — determines whether decompression can be skipped |
-| 7 | INFO + Decompress (tar.gz or gz) | `tar -xzf` for `.tar.gz`; `gzip -dk` for `.gz` — `-dk` keeps the archive; skipped if dump already present |
-| 8 | Verify dump file exists | Fails immediately if decompression did not produce the expected file |
-| 9 | INFO + Create database | `community.postgresql.postgresql_db state: present` — idempotent |
-| 10 | INFO + Create database user | `community.postgresql.postgresql_user` — creates `adempiere` user with `CREATEDB,NOSUPERUSER`; idempotent |
-| 11 | INFO + Restore dump | `community.postgresql.postgresql_db state: restore` — **destructive**, overwrites existing data |
-| 12 | INFO + Clean up | Always removes the decompressed dump (working file); removes the archive only if `keep_restore_file: false` |
+| 1 | INFO: configuration summary | Prints source, destination, detected format, container, DB config |
+| 2 | `set_fact: restore_dump_filename` | Derives the decompressed filename from `restore_backup_filename` |
+| 3 | INFO + Copy backup file | Copies from `restore_local_dir` on control node to `restore_remote_backup_dir` on backend; skipped if file already present |
+| 4 | INFO + Decompress (tar.gz or gz) | `tar -xzf` for `.tar.gz`; `gzip -dk` for `.gz`; skipped if dump already present |
+| 5 | Verify dump file exists | Fails immediately if decompression did not produce the expected file |
+| 6 | INFO + Drop and recreate database | `docker exec psql`: `DROP DATABASE IF EXISTS` + `CREATE DATABASE` + `ALTER DATABASE SET search_path` |
+| 7 | INFO + Create database user if not exists | `docker exec psql`: idempotent `DO $$` block — creates user only if absent |
+| 8 | INFO + Restore dump | `docker exec psql -f <container-path>` — **destructive**, overwrites existing data |
+| 9 | INFO + Post-restore SQL script | Optional: copy script to backend, `docker exec psql -f`, then remove; controlled by `post_restore_sql_enabled` |
+| 10 | INFO + Clean up | Always removes the decompressed dump; removes archive only if `keep_restore_file: false` |
 
 **Format auto-detection:**
 
@@ -575,9 +575,14 @@ The role checks `.tar.gz` first (before `.gz`) because a `.tar.gz` filename also
 |---|---|---|
 | `restore_backup_filename` | `vars.yml` | Filename of the backup on the control node |
 | `restore_local_dir` | `vars.yml` | Directory on the control node containing the backup |
-| `restore_remote_backup_dir` | `vars.yml` | Canonical backup directory on the backend server |
+| `restore_remote_backup_dir` | `vars.yml` | Canonical backup directory on the backend server (host path) |
+| `restore_container_backup_dir` | `vars.yml` | Same directory as seen from inside the PostgreSQL container |
 | `keep_restore_file` | `vars.yml` | Keep the archive after restore (default: `true`) |
-| `pg_host`, `pg_port`, `pg_superuser` | `vars.yml` | PostgreSQL connection |
+| `pg_container` | `vars.yml` | Name of the PostgreSQL Docker container |
+| `pg_superuser` | `vars.yml` | PostgreSQL superuser name |
 | `adempiere_db`, `adempiere_owner` | `vars.yml` | Database and user name |
-| `postgres_password` | `vault.yml` | Password for the `postgres` superuser |
-| `adempiere_db_password` | `vault.yml` | Password for the `adempiere` database user |
+| `post_restore_sql_enabled` | `vars.yml` | Enable post-restore SQL script (default: `false`) |
+| `post_restore_sql_filename` | `vars.yml` | SQL script filename on the control node |
+| `post_restore_sql_local_dir` | `vars.yml` | Directory on the control node containing the SQL script |
+| `post_restore_sql_remote_dir` | `vars.yml` | Destination directory on the backend server |
+| `adempiere_db_password` | `vault.yml` | Password set on the `adempiere` user if it needs to be created |

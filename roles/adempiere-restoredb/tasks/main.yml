@@ -1,6 +1,8 @@
 #SPDX-License-Identifier: MIT-0
 ---
 # tasks file for roles/adempiere-restoredb
+# All PostgreSQL operations run inside the container via docker exec, using Unix socket
+# trust auth — no TCP password authentication required.
 
 - name: "INFO: DB restore — configuration summary"
   ansible.builtin.debug:
@@ -8,7 +10,8 @@
       - "source   : {{ restore_local_dir }}/{{ restore_backup_filename }}"
       - "dest     : {{ restore_remote_backup_dir }}/{{ restore_backup_filename }}"
       - "format   : {{ 'tar.gz' if restore_backup_filename.endswith('.tar.gz') else 'gz' }} | dump file: {{ restore_backup_filename[:-7] + '.sql' if restore_backup_filename.endswith('.tar.gz') else restore_backup_filename[:-3] }}"
-      - "database : {{ adempiere_db }} | owner={{ adempiere_owner }} | host={{ pg_host }}:{{ pg_port }} | superuser={{ pg_superuser }}"
+      - "container: {{ pg_container }} | pg path: {{ restore_container_backup_dir }}"
+      - "database : {{ adempiere_db }} | owner={{ adempiere_owner }} | superuser={{ pg_superuser }}"
       - "keep_restore_file: {{ keep_restore_file }}"
 
 - name: Derive dump filename from backup filename
@@ -19,19 +22,6 @@
         if restore_backup_filename.endswith('.tar.gz')
         else restore_backup_filename[:-3]
       }}
-
-- name: "INFO: Install PostgreSQL client"
-  ansible.builtin.debug:
-    msg: "target={{ inventory_hostname }} | packages=postgresql-client,python3-psycopg2"
-
-- name: Ensure PostgreSQL client is installed
-  ansible.builtin.apt:
-    name:
-      - postgresql-client
-      - python3-psycopg2
-    state: present
-    update_cache: yes
-  become: true
 
 - name: "INFO: Copy backup file"
   ansible.builtin.debug:
@@ -91,48 +81,146 @@
     msg: "Dump file not found after decompression: {{ restore_remote_backup_dir }}/{{ restore_dump_filename }}"
   when: not dump_verify.stat.exists
 
-- name: "INFO: Create database"
+- name: "INFO: Drop and recreate database"
   ansible.builtin.debug:
-    msg: "db={{ adempiere_db }} | owner={{ adempiere_owner }} | host={{ pg_host }}:{{ pg_port }}"
+    msg: "DROP DATABASE IF EXISTS {{ adempiere_db }} | CREATE DATABASE {{ adempiere_db }} WITH OWNER {{ adempiere_owner }} | container={{ pg_container }}"
+
+- name: Drop adempiere database
+  ansible.builtin.command:
+    argv:
+      - docker
+      - exec
+      - "{{ pg_container }}"
+      - psql
+      - -U
+      - "{{ pg_superuser }}"
+      - -d
+      - postgres
+      - -c
+      - "DROP DATABASE IF EXISTS {{ adempiere_db }} WITH (FORCE);"
+  become: true
+  changed_when: true
 
 - name: Create adempiere database
-  community.postgresql.postgresql_db:
-    name: "{{ adempiere_db }}"
-    owner: "{{ adempiere_owner }}"
-    login_host: "{{ pg_host }}"
-    login_port: "{{ pg_port }}"
-    login_user: "{{ pg_superuser }}"
-    login_password: "{{ postgres_password }}"
-    state: present
+  ansible.builtin.command:
+    argv:
+      - docker
+      - exec
+      - "{{ pg_container }}"
+      - psql
+      - -U
+      - "{{ pg_superuser }}"
+      - -d
+      - postgres
+      - -c
+      - "CREATE DATABASE {{ adempiere_db }} WITH OWNER {{ adempiere_owner }};"
+  become: true
+  changed_when: true
 
-- name: "INFO: Create database user"
+- name: Set search_path on adempiere database
+  ansible.builtin.command:
+    argv:
+      - docker
+      - exec
+      - "{{ pg_container }}"
+      - psql
+      - -U
+      - "{{ pg_superuser }}"
+      - -d
+      - postgres
+      - -c
+      - "ALTER DATABASE {{ adempiere_db }} SET search_path = {{ adempiere_db }}, public;"
+  become: true
+  changed_when: true
+
+- name: "INFO: Ensure adempiere database user exists"
   ansible.builtin.debug:
-    msg: "user={{ adempiere_owner }} | host={{ pg_host }}:{{ pg_port }} | role_attr_flags=CREATEDB,NOSUPERUSER"
+    msg: "user={{ adempiere_owner }} | LOGIN,CREATEDB,NOSUPERUSER | container={{ pg_container }}"
 
-- name: Ensure adempiere database user exists
-  community.postgresql.postgresql_user:
-    name: "{{ adempiere_owner }}"
-    password: "{{ adempiere_db_password }}"
-    role_attr_flags: "CREATEDB,NOSUPERUSER"
-    login_host: "{{ pg_host }}"
-    login_port: "{{ pg_port }}"
-    login_user: "{{ pg_superuser }}"
-    login_password: "{{ postgres_password }}"
-    state: present
+- name: Create adempiere database user if not exists
+  ansible.builtin.command:
+    argv:
+      - docker
+      - exec
+      - "{{ pg_container }}"
+      - psql
+      - -U
+      - "{{ pg_superuser }}"
+      - -d
+      - postgres
+      - -c
+      - "DO $$ BEGIN IF NOT EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname = '{{ adempiere_owner }}') THEN CREATE ROLE {{ adempiere_owner }} LOGIN CREATEDB NOSUPERUSER PASSWORD '{{ adempiere_db_password }}'; END IF; END $$;"
+  become: true
+  changed_when: false
 
 - name: "INFO: Restore dump (destructive — overwrites existing data)"
   ansible.builtin.debug:
-    msg: "db={{ adempiere_db }} | source={{ restore_remote_backup_dir }}/{{ restore_dump_filename }} | host={{ pg_host }}:{{ pg_port }}"
+    msg: "db={{ adempiere_db }} | file={{ restore_container_backup_dir }}/{{ restore_dump_filename }} | container={{ pg_container }}"
 
 - name: Restore SQL dump into adempiere database
-  community.postgresql.postgresql_db:
-    name: "{{ adempiere_db }}"
-    state: restore
-    target: "{{ restore_remote_backup_dir }}/{{ restore_dump_filename }}"
-    login_host: "{{ pg_host }}"
-    login_port: "{{ pg_port }}"
-    login_user: "{{ pg_superuser }}"
-    login_password: "{{ postgres_password }}"
+  ansible.builtin.command:
+    argv:
+      - docker
+      - exec
+      - "{{ pg_container }}"
+      - psql
+      - -U
+      - "{{ pg_superuser }}"
+      - -d
+      - "{{ adempiere_db }}"
+      - -f
+      - "{{ restore_container_backup_dir }}/{{ restore_dump_filename }}"
+  become: true
+  changed_when: true
+
+- name: "INFO: Post-restore SQL script"
+  ansible.builtin.debug:
+    msg: "src={{ post_restore_sql_local_dir }}/{{ post_restore_sql_filename }} | container file={{ restore_container_backup_dir }}/03-Misc-SQLs/{{ post_restore_sql_filename }} | db={{ adempiere_db }}"
+  when: post_restore_sql_enabled | bool
+
+- name: Ensure post-restore SQL script directory exists
+  ansible.builtin.file:
+    path: "{{ post_restore_sql_remote_dir }}"
+    state: directory
+    owner: "{{ adempiere_username }}"
+    group: "{{ adempiere_username }}"
+    mode: '0755'
+  when: post_restore_sql_enabled | bool
+  become: true
+
+- name: Copy post-restore SQL script to backend
+  ansible.builtin.copy:
+    src: "{{ post_restore_sql_local_dir }}/{{ post_restore_sql_filename }}"
+    dest: "{{ post_restore_sql_remote_dir }}/{{ post_restore_sql_filename }}"
+    owner: "{{ adempiere_username }}"
+    group: "{{ adempiere_username }}"
+    mode: '0644'
+  when: post_restore_sql_enabled | bool
+  become: true
+
+- name: Execute post-restore SQL script
+  ansible.builtin.command:
+    argv:
+      - docker
+      - exec
+      - "{{ pg_container }}"
+      - psql
+      - -U
+      - "{{ pg_superuser }}"
+      - -d
+      - "{{ adempiere_db }}"
+      - -f
+      - "{{ restore_container_backup_dir }}/03-Misc-SQLs/{{ post_restore_sql_filename }}"
+  become: true
+  changed_when: true
+  when: post_restore_sql_enabled | bool
+
+- name: Remove post-restore SQL script from backend
+  ansible.builtin.file:
+    path: "{{ post_restore_sql_remote_dir }}/{{ post_restore_sql_filename }}"
+    state: absent
+  when: post_restore_sql_enabled | bool
+  become: true
 
 - name: "INFO: Clean up working files"
   ansible.builtin.debug:
