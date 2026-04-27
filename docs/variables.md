@@ -122,7 +122,7 @@ These variables are set per inventory group and **committed to git** (not secret
 | `dns_domain` | *(set in `group_vars/all/vars.yml`)* | Base domain for routing |
 | `host` | `adempiere` | Subdomain prefix |
 | `adempiere_host` | `{{ host }}.{{ dns_domain }}` | Full FQDN for ADempiere routing, assembled at runtime |
-| `servers` | `["http://<backend_ip>"]` | List of BackEnd URLs for the ADempiere load balancer |
+| `servers` | built from `groups['BackEnd']` | List of BackEnd URLs for the ADempiere load balancer — derived automatically from the inventory at runtime; adding a host to the `BackEnd` group in `hosts.yml` is all that is needed |
 | `timezone` | *(set in `group_vars/all/vars.yml`)* | Timezone for the Traefik container |
 
 ## Role: `deploy-traefik` — Vars *(⚠ move to vault — see [security.md](security.md))*

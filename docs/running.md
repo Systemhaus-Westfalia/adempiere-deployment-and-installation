@@ -106,17 +106,17 @@ Three commands, each showing a different scope. The first two read **local files
 
 **1. Inventory variables for a host** — what `group_vars`, `host_vars`, and the inventory file contribute. Fast, always works, no SSH:
 ```bash
-ansible-inventory --host backend
+ansible-inventory --host backend1
 ```
 
 **2. All Ansible variables the host will use during a play** — inventory variables plus any cached facts. Useful to verify a variable like `{{ install_path }}` or `{{ be_user }}` resolves correctly before running. No SSH:
 ```bash
-ansible backend -m debug -a "var=hostvars[inventory_hostname]"
+ansible backend1 -m debug -a "var=hostvars[inventory_hostname]"
 ```
 
 **3. Complete remote host configuration** — OS, kernel, CPU, memory, network interfaces, disk, and all system facts gathered live from the server. Requires SSH (pass port and user after serversconf has run):
 ```bash
-ansible backend -m setup -e "ansible_port={{ custom_sshport }}" -e "ansible_user={{ adempiere_username }}"
+ansible backend1 -m setup -e "ansible_port={{ custom_sshport }}" -e "ansible_user={{ adempiere_username }}"
 ```
 
 ---

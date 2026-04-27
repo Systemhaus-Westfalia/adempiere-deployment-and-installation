@@ -9,7 +9,9 @@ deployment_and_installation/
 ├── docs/                          # Full documentation (this directory)
 │
 ├── inventories/
-│   ├── hosts.yml                  # Inventory with real IPs — gitignored, never commit
+│   ├── hosts.yml                  # Inventory with real IPs — gitignored, never commit.
+│   │                              #   servers (parent) → BackEnd + FrontEnd (children).
+│   │                              #   Each host defined once; add backend2 here to scale out.
 │   └── hosts_template.yml         # Template for hosts.yml — copy this and fill in IPs
 │
 ├── group_vars/
