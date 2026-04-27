@@ -22,10 +22,21 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 VARS_FILE="$SCRIPT_DIR/group_vars/all/vars.yml"
 
-# --- Read backend IP from inventory ---
+# --- Read backend hosts from inventory ---
 
-BACKEND_IP=$(ansible-inventory --host backend1 2>/dev/null \
-  | python3 -c "import sys,json; print(json.load(sys.stdin).get('ansible_host','(unknown)'))" 2>/dev/null || echo "(unknown)")
+BACKEND_HOSTS=$(ansible-inventory --list 2>/dev/null | python3 -c "
+import sys, json
+try:
+    inv = json.load(sys.stdin)
+    hosts = inv.get('BackEnd', {}).get('hosts', [])
+    for h in hosts:
+        ip = inv.get('_meta', {}).get('hostvars', {}).get(h, {}).get('ansible_host', '(no IP)')
+        print(f'    {h}  →  {ip}')
+except Exception:
+    pass
+" 2>/dev/null || true)
+
+BACKEND_COUNT=$(echo "$BACKEND_HOSTS" | grep -c "→" 2>/dev/null || echo "0")
 
 # --- Read variables from vars.yml ---
 
@@ -98,6 +109,32 @@ if [[ "$POST_SQL_ENABLED" == "true" ]]; then
   fi
 fi
 
+# --- Multi-backend safety check ---
+
+if [[ "$BACKEND_COUNT" -gt 1 ]]; then
+  echo ""
+  echo "================================================================"
+  echo "  MULTI-BACKEND WARNING"
+  echo "================================================================"
+  echo ""
+  echo "  More than one BackEnd server is defined in the inventory:"
+  echo ""
+  echo "$BACKEND_HOSTS"
+  echo ""
+  echo "  The restore will run on ALL servers listed above."
+  echo "  This operation CANNOT be undone on any of them."
+  echo ""
+  read -rp "  Type YES to restore to ALL servers, or anything else to abort: " multi_confirm
+  if [[ "$multi_confirm" != "YES" ]]; then
+    echo ""
+    echo "  Aborted. To restore a single server only, remove the others"
+    echo "  from the BackEnd group in inventories/hosts.yml and re-run."
+    exit 1
+  fi
+  echo "================================================================"
+  echo ""
+fi
+
 # --- Confirmation prompt ---
 
 echo ""
@@ -110,7 +147,8 @@ echo "  Format       : $FORMAT  →  dump file: $DUMP_FILENAME"
 echo "  Destination  : $RESTORE_REMOTE_DIR/"
 echo "  Keep archive : $KEEP_RESTORE_FILE"
 echo ""
-echo "  Backend host : $BACKEND_IP  (from inventory)"
+echo "  Backend host(s) (from inventory):"
+echo "$BACKEND_HOSTS"
 echo "  Container    : $PG_CONTAINER"
 echo "  Database     : $ADEMPIERE_DB  (owner: $ADEMPIERE_OWNER)"
 echo "  Superuser    : $PG_SUPERUSER  (via docker exec — no TCP auth)"

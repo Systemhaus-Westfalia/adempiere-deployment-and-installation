@@ -88,18 +88,21 @@ if [[ ! -f "$HOME/.vault_pass.txt" ]]; then
   exit 1
 fi
 
-# Pre-flight: remove stale host key for the backend server from known_hosts.
+# Pre-flight: remove stale host keys for all BackEnd servers from known_hosts.
 # Required after a server reset — the host presents a new key and SSH would refuse to connect.
-BACKEND_IP=$(ansible-inventory --host backend1 2>/dev/null \
-  | python3 -c "import sys,json; print(json.load(sys.stdin).get('ansible_host',''))" 2>/dev/null)
-if [[ -n "$BACKEND_IP" ]]; then
-  echo ">>> Pre-flight: removing stale known_hosts entry for $BACKEND_IP"
-  ssh-keygen -f "$HOME/.ssh/known_hosts" -R "$BACKEND_IP" 2>/dev/null || true
-  echo ""
-else
-  echo "WARNING: could not determine backend IP from inventory — skipping known_hosts cleanup."
-  echo ""
+FOUND_IP=false
+while IFS= read -r line; do
+  IP=$(echo "$line" | awk '{print $NF}')
+  if [[ "$IP" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+    echo ">>> Pre-flight: removing stale known_hosts entry for $IP"
+    ssh-keygen -f "$HOME/.ssh/known_hosts" -R "$IP" 2>/dev/null || true
+    FOUND_IP=true
+  fi
+done <<< "$BACKEND_LIST"
+if [[ "$FOUND_IP" == "false" ]]; then
+  echo "WARNING: could not determine backend IP(s) from inventory — skipping known_hosts cleanup."
 fi
+echo ""
 
 KEY_PATH="$SCRIPT_DIR/ssh_keys/adempiere_installation_key"
 REGEN_KEY=false

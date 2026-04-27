@@ -24,5 +24,4 @@ traefik_dns_provider: cloudflare
 traefik_socket_uri: "{{ socket_container_name }}" # socket-proxy is the name of a container localy, if it connects remotely put the ip
 middlewares: []
 # timezone is set in group_vars/all/vars.yml — do not set a default here
-servers:
-  - "http://{{ hostvars['backend1']['ansible_host'] }}"
+servers: "{{ groups['BackEnd'] | map('extract', hostvars) | map(attribute='ansible_host') | map('regex_replace', '^(.*)$', 'http://\\1') | list }}"
