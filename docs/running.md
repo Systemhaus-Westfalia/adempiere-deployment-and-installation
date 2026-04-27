@@ -216,7 +216,24 @@ ansible-playbook adempiere-restoredb.yml
 
 ---
 
-### Scenario 6 — Apply OS security updates
+### Scenario 6 — Add a second BackEnd server
+
+`deploy-backend.sh` deletes and regenerates the SSH keypair — **do not use it** when other servers already use the current keypair, or you will lose access to them.
+
+Run the playbooks manually with `--limit` instead. The existing keypair is distributed to the new server:
+
+```bash
+ansible-playbook serversprep.yml    --limit backend2
+ansible-playbook so-updates.yml     --limit backend2
+ansible-playbook serversconf.yml    --limit backend2
+ansible-playbook serverswap.yml     --limit backend2
+ansible-playbook install-docker.yml --limit backend2
+ansible-playbook deploy-adempiere.yml --limit backend2
+```
+
+---
+
+### Scenario 7 — Apply OS security updates
 
 ```bash
 ansible-playbook so-updates.yml
@@ -226,7 +243,7 @@ Servers reboot automatically if the kernel was updated.
 
 ---
 
-### Scenario 7 — Test against a local VM (without touching production)
+### Scenario 8 — Test against a local VM (without touching production)
 
 ```bash
 # Limit to the ansible_test group (see inventories/hosts.yml)

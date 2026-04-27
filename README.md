@@ -104,6 +104,40 @@ For the detailed relationships between the specific playbooks, roles, and invent
 
 ---
 
+## Quick Start
+
+**One-time setup** (do this once after cloning):
+
+```bash
+# 1. Install required Ansible collections
+ansible-galaxy collection install community.docker community.postgresql community.crypto
+
+# 2. Create the vault password file
+echo "YourVaultPassword" > ~/.vault_pass.txt && chmod 600 ~/.vault_pass.txt
+
+# 3. Configure your deployment
+cp group_vars/vars_template.yml group_vars/all/vars.yml   # fill in IPs, domain, SSH port
+cp group_vars/vault_template.yml group_vars/all/vault.yml # fill in passwords and tokens
+ansible-vault encrypt group_vars/all/vault.yml
+cp inventories/hosts_template.yml inventories/hosts.yml   # fill in server IPs
+```
+
+**Deploy a BackEnd server** (fresh server, port 22, root access):
+
+```bash
+./deploy-backend.sh
+```
+
+**Restore the database** (after deploy, if needed):
+
+```bash
+./restore-db.sh
+```
+
+For the full walkthrough including dry runs and verification steps, see [docs/getting-started.md](docs/getting-started.md).
+
+---
+
 ## Documentation
 
 | Topic | File |

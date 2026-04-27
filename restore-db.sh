@@ -24,7 +24,7 @@ VARS_FILE="$SCRIPT_DIR/group_vars/all/vars.yml"
 
 # --- Read backend IP from inventory ---
 
-BACKEND_IP=$(ansible-inventory --host backend 2>/dev/null \
+BACKEND_IP=$(ansible-inventory --host backend1 2>/dev/null \
   | python3 -c "import sys,json; print(json.load(sys.stdin).get('ansible_host','(unknown)'))" 2>/dev/null || echo "(unknown)")
 
 # --- Read variables from vars.yml ---

@@ -8,24 +8,24 @@
 #   ./deploy-backend.sh --check   # dry run — shows what would change, no writes
 #
 # BEFORE RUNNING:
-#   1. Reset the backend server (all data will be lost).
-#   2. Confirm the server is reachable on port 22 as root with password auth.
-#   3. Ensure ~/.vault_pass.txt exists (configured via vault_password_file in ansible.cfg).
+#   1. Confirm the server is reachable on port 22 as root with password auth.
+#   2. Ensure ~/.vault_pass.txt exists (configured via vault_password_file in ansible.cfg).
 #
 # WHAT THIS SCRIPT DOES:
-#   Step 0  Delete the existing SSH keypair from ssh_keys/ on this control node.
-#           Required because genkey.yml uses state=present and will not regenerate
-#           an existing keypair. A server reset means the old public key is gone
-#           from the server anyway — a fresh keypair keeps everything consistent.
-#   Step 1  genkey.yml       — Generate a new RSA keypair on this control node.
-#   Step 2  serversprep.yml  — Distribute the public key to the backend (root, port 22).
-#   Step 3  so-updates.yml   — OS update + reboot.
-#   Step 4  serversconf.yml  — Full server hardening: user, SSH, packages.
-#   Step 5  install-docker.yml — Install Docker CE (pinned to 28.x).
-#   Step 6  deploy-adempiere.yml — Deploy the ADempiere container stack.
+#   Step 0  Keypair check — if an existing keypair is found, asks whether to delete it.
+#           Default is NO. Only deletes on explicit YES. If no keypair exists, generates
+#           one silently. WARNING: deleting regenerates the key and locks you out of any
+#           server that still has the old public key deployed.
+#   Step 1  genkey.yml         — Generate RSA keypair (skipped if existing key was kept).
+#   Step 2  serversprep.yml    — Distribute the public key to the backend (root, port 22).
+#   Step 3  so-updates.yml     — OS update + reboot.
+#   Step 4  serversconf.yml    — Full server hardening: user, SSH, packages.
+#   Step 5  serverswap.yml     — Configure swap file (8 GB, from group_vars/BackEnd.yml).
+#   Step 6  install-docker.yml — Install Docker CE (pinned to 28.x).
+#   Step 7  deploy-adempiere.yml — Deploy the ADempiere container stack.
 #
 # NOTE ON --check:
-#   Step 0 (keypair deletion) is skipped in check mode — no local files are touched.
+#   Step 0 (keypair handling) is skipped in check mode — no local files are touched.
 #   so-updates.yml: the reboot task uses shell/command and is skipped by Ansible
 #   in check mode, so the dry run will not reflect the post-reboot state.
 
@@ -38,6 +38,19 @@ LOGFILE="$LOG_DIR/deploy-backend-$(date +%Y%m%d-%H%M%S).log"
 exec > >(tee -a "$LOGFILE") 2>&1
 echo "Output is logged to: $LOGFILE"
 echo ""
+
+# Build a display list of BackEnd hosts and their IPs from the inventory.
+BACKEND_LIST=$(ansible-inventory --list 2>/dev/null | python3 -c "
+import sys, json
+try:
+    inv = json.load(sys.stdin)
+    hosts = inv.get('BackEnd', {}).get('hosts', [])
+    for h in hosts:
+        ip = inv.get('_meta', {}).get('hostvars', {}).get(h, {}).get('ansible_host', '(no IP)')
+        print(f'      {h}  →  {ip}')
+except Exception:
+    print('      (could not read inventory)')
+" 2>/dev/null || echo "      (could not read inventory)")
 
 CHECK=""
 if [[ "${1:-}" == "--check" ]]; then
@@ -52,12 +65,11 @@ else
   echo "================================================================"
   echo "  LIVE RUN — changes will be made on the backend server"
   echo ""
+  echo "  Target BackEnd server(s):"
+  echo "$BACKEND_LIST"
   echo "  Prerequisites:"
-  echo "    - Backend server has been RESET (fresh, port 22, root+password)"
+  echo "    - All servers above are reachable on port 22 as root with password auth"
   echo "    - ~/.vault_pass.txt exists (used automatically via ansible.cfg)"
-  echo ""
-  echo "  The existing SSH keypair in ssh_keys/ will be DELETED and"
-  echo "  regenerated. This is intentional after a server reset."
   echo ""
   read -rp "  Type YES to continue: " confirm
   if [[ "$confirm" != "YES" ]]; then
@@ -77,7 +89,7 @@ fi
 
 # Pre-flight: remove stale host key for the backend server from known_hosts.
 # Required after a server reset — the host presents a new key and SSH would refuse to connect.
-BACKEND_IP=$(ansible-inventory --host backend 2>/dev/null \
+BACKEND_IP=$(ansible-inventory --host backend1 2>/dev/null \
   | python3 -c "import sys,json; print(json.load(sys.stdin).get('ansible_host',''))" 2>/dev/null)
 if [[ -n "$BACKEND_IP" ]]; then
   echo ">>> Pre-flight: removing stale known_hosts entry for $BACKEND_IP"
@@ -89,18 +101,47 @@ else
 fi
 
 KEY_PATH="$SCRIPT_DIR/ssh_keys/adempiere_installation_key"
+REGEN_KEY=false
 
-# Step 0 — Delete old keypair (skipped in check mode)
-if [[ -z "$CHECK" ]]; then
-  echo ">>> Step 0: Deleting old SSH keypair..."
-  rm -f "$KEY_PATH" "$KEY_PATH.pub"
-  echo "    Done."
+# Step 0 — Keypair handling
+if [[ -n "$CHECK" ]]; then
+  echo ">>> Step 0: Keypair check — skipped in dry-run mode"
+  echo ""
+elif [[ -f "$KEY_PATH" ]]; then
+  echo ">>> Step 0: SSH keypair already exists at ssh_keys/adempiere_installation_key"
+  echo ""
+  echo "  ┌─────────────────────────────────────────────────────────────────┐"
+  echo "  │  WARNING                                                        │"
+  echo "  │  Deleting this keypair will lock you out of ANY server that     │"
+  echo "  │  already has the current public key deployed.                   │"
+  echo "  │  Only answer YES if this is a full server reset and no other    │"
+  echo "  │  servers are using this keypair.                                │"
+  echo "  └─────────────────────────────────────────────────────────────────┘"
+  echo ""
+  read -rp "  Delete and regenerate the keypair? [yes/NO]: " key_confirm
+  if [[ "$key_confirm" == "YES" ]]; then
+    echo "  Deleting old keypair..."
+    rm -f "$KEY_PATH" "$KEY_PATH.pub"
+    REGEN_KEY=true
+    echo "  Done."
+  else
+    echo "  Keeping existing keypair."
+    REGEN_KEY=false
+  fi
+  echo ""
+else
+  echo ">>> Step 0: No keypair found — a new one will be generated."
+  REGEN_KEY=true
   echo ""
 fi
 
-# Step 1 — Generate new keypair
-echo ">>> Step 1: genkey.yml — Generate SSH keypair"
-ansible-playbook genkey.yml $CHECK
+# Step 1 — Generate keypair
+if [[ "$REGEN_KEY" == "true" ]]; then
+  echo ">>> Step 1: genkey.yml — Generate SSH keypair"
+  ansible-playbook genkey.yml $CHECK
+else
+  echo ">>> Step 1: genkey.yml — Skipped (existing keypair kept)"
+fi
 echo ""
 
 # Step 2 — Distribute public key to backend (root, port 22)
@@ -118,13 +159,18 @@ echo ">>> Step 4: serversconf.yml — Server hardening"
 ansible-playbook serversconf.yml --limit BackEnd $CHECK
 echo ""
 
-# Step 5 — Docker CE
-echo ">>> Step 5: install-docker.yml — Install Docker"
+# Step 5 — Swap
+echo ">>> Step 5: serverswap.yml — Configure swap"
+ansible-playbook serverswap.yml --limit BackEnd $CHECK
+echo ""
+
+# Step 6 — Docker CE
+echo ">>> Step 6: install-docker.yml — Install Docker"
 ansible-playbook install-docker.yml --limit BackEnd $CHECK
 echo ""
 
-# Step 6 — ADempiere stack
-echo ">>> Step 6: deploy-adempiere.yml — Deploy ADempiere"
+# Step 7 — ADempiere stack
+echo ">>> Step 7: deploy-adempiere.yml — Deploy ADempiere"
 ansible-playbook deploy-adempiere.yml $CHECK
 echo ""
 
