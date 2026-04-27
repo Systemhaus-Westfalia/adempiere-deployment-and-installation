@@ -205,7 +205,7 @@ The table shows which components are actively used per role.
 | `deploy-traefik` | ✓ | ✓ | ✓ | ✓ (6) | — | — |
 | `adempiere-restoredb` | ✓ | ✓ | ✓ | — | — | ✓ (.sql.gz dumps) |
 | `deploy-containers` | ✓ | ✓ | ✓ | — | — | — |
-| `serverswap` | — | — | — | — | — | — |
+| `serverswap` | ✓ | ✓ | — | — | — | — |
 
 ---
 

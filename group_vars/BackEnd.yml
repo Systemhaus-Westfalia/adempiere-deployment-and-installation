@@ -1,0 +1,8 @@
+#SPDX-License-Identifier: MIT-0
+---
+# BackEnd-specific variables — committed to git (not secrets).
+# Applies to: ADempiere application server (PostgreSQL + 20 Docker containers).
+
+# Swap file size in megabytes (8192 = 8 GB).
+# Sized for PostgreSQL memory spikes on a 12 GB RAM / 512 GB disk server.
+swap_size_mb: 8192

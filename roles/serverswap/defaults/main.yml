@@ -1,0 +1,4 @@
+#SPDX-License-Identifier: MIT-0
+---
+# Fallback only — overridden by group_vars/BackEnd.yml (8192) and group_vars/FrontEnd.yml (4096).
+swap_size_mb: 4096

@@ -11,6 +11,9 @@
 - name: Configure servers
   import_playbook: serversconf.yml
 
+- name: Configure swap
+  import_playbook: serverswap.yml
+
 - name: Install and configure vim
   import_playbook: deploy-vim.yml
 

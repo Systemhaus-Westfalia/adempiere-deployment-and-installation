@@ -52,7 +52,7 @@ deployment_and_installation/
     ├── deploy-traefik/            # Traefik + socket-proxy deployment
     ├── adempiere-restoredb/       # PostgreSQL dump restore
     ├── deploy-containers/         # Generic container deployment example (nginx)
-    └── serverswap/                # ⚠ EMPTY — stub, not implemented
+    └── serverswap/                # Swap file creation and kernel tuning (vm.swappiness)
 ```
 
 ---

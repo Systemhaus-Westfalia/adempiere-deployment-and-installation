@@ -23,12 +23,13 @@ Use `deploy-backend.sh` after resetting the backend server. It deletes the old S
 | `serversprep.yml` | servers | Distribute SSH key |
 | `so-updates.yml` | servers | OS update + reboot |
 | `serversconf.yml` | servers | Server hardening |
+| `serverswap.yml` | servers | Swap file + kernel tuning (`vm.swappiness=10`); size from per-group vars |
 | `install-docker.yml` | servers | Install Docker CE |
 | `deploy-vim.yml` | servers | Vim + plugins |
 | `deploy-adempiere.yml` | BackEnd | ADempiere container stack |
 | `deploy-traefik.yml` | FrontEnd | Traefik reverse proxy |
 | `adempiere-restoredb.yml` | BackEnd | PostgreSQL backup restore |
-| `main.yml` | various | Orchestrates: genkey → serversprep → so-updates → serversconf → deploy-vim → install-docker |
+| `main.yml` | various | Orchestrates: genkey → serversprep → so-updates → serversconf → serverswap → deploy-vim → install-docker |
 | `main-w-traefik.yml` | various | Orchestrates full setup: genkey → serversprep → so-updates → serversconf → install-docker → deploy-traefik → deploy-adempiere |
 
 ---
@@ -52,11 +53,13 @@ ansible-playbook serversconf.yml --check
 ansible-playbook serversconf.yml --check --diff   # also shows file diffs
 ```
 
-### Limit to a specific host
+### Limit to a specific host or group
 
 ```bash
 ansible-playbook so-updates.yml --limit <backend_ip>
 ansible-playbook deploy-adempiere.yml --limit ansible_test
+ansible-playbook serverswap.yml --limit BackEnd   # swap BackEnd only (8 GB)
+ansible-playbook serverswap.yml --limit FrontEnd  # swap FrontEnd only (4 GB)
 ```
 
 ### Start from a specific task

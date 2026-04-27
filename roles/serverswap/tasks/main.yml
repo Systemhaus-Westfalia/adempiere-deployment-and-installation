@@ -1,0 +1,106 @@
+#SPDX-License-Identifier: MIT-0
+##
+## ROLE: serverswap
+## PURPOSE: Create or resize a persistent swap file on the server.
+##
+## CONTEXT:
+##   - Targets both BackEnd and FrontEnd servers (via 'servers' group).
+##   - Runs as root (become: true).
+##   - Safe to re-run: skips all work if /swapfile already exists at the correct size.
+##   - Handles resize: if /swapfile exists at the wrong size, deactivates, removes,
+##     and recreates it at the new size.
+##
+## KEY VARIABLES:
+##   swap_size_mb  : swap file size in MB.
+##                   Set per group: group_vars/BackEnd.yml (8192) and group_vars/FrontEnd.yml (4096).
+##                   Not a vault secret — committed to git.
+##
+## WHAT THIS ROLE DOES (in order):
+##   1.  Stats /swapfile and reports current vs. target size.
+##   2.  Sets swap_create=true if /swapfile is missing or the wrong size.
+##   3.  If resize needed and swap is active: deactivates swap (swapoff).
+##   4.  If resize needed and /swapfile exists: removes the old file.
+##   5.  Allocates /swapfile at the target size using fallocate.
+##   6.  Sets permissions to 0600 (required by mkswap).
+##   7.  Formats the file as swap (mkswap).
+##   8.  Activates swap (swapon).
+##   9.  Adds /swapfile to /etc/fstab for persistence across reboots.
+##  10.  Sets vm.swappiness=10 (server/database tuning: use RAM first).
+##  11.  Sets vm.vfs_cache_pressure=50 (balanced inode/dentry cache).
+##
+---
+
+- name: Check if swapfile exists
+  ansible.builtin.stat:
+    path: /swapfile
+  register: swapfile_stat
+
+- name: "INFO: Swap status"
+  ansible.builtin.debug:
+    msg:
+      - "host={{ inventory_hostname }}"
+      - "current_mb={{ (swapfile_stat.stat.size | default(0) / 1024 / 1024) | int }}"
+      - "target_mb={{ swap_size_mb }}"
+      - "action={{ 'none (already correct)' if (swapfile_stat.stat.exists and swapfile_stat.stat.size == swap_size_mb | int * 1024 * 1024) else ('resize' if swapfile_stat.stat.exists else 'create') }}"
+
+- name: Set fact — swap needs creation or resize
+  ansible.builtin.set_fact:
+    swap_create: "{{ (not swapfile_stat.stat.exists) or (swapfile_stat.stat.size != (swap_size_mb | int * 1024 * 1024)) }}"
+
+- name: Deactivate swap for resize
+  ansible.builtin.command:
+    cmd: swapoff /swapfile
+  when:
+    - swap_create | bool
+    - ansible_swaptotal_mb > 0
+
+- name: Remove swapfile for resize
+  ansible.builtin.file:
+    path: /swapfile
+    state: absent
+  when:
+    - swap_create | bool
+    - swapfile_stat.stat.exists
+
+- name: Allocate swap file
+  ansible.builtin.command:
+    cmd: "fallocate -l {{ swap_size_mb }}M /swapfile"
+  when: swap_create | bool
+
+- name: Set swap file permissions
+  ansible.builtin.file:
+    path: /swapfile
+    owner: root
+    group: root
+    mode: '0600'
+  when: swap_create | bool
+
+- name: Format swap file
+  ansible.builtin.command:
+    cmd: mkswap /swapfile
+  when: swap_create | bool
+
+- name: Enable swap
+  ansible.builtin.command:
+    cmd: swapon /swapfile
+  when: swap_create | bool
+
+- name: Add swap to /etc/fstab
+  ansible.builtin.lineinfile:
+    path: /etc/fstab
+    line: '/swapfile none swap sw 0 0'
+    state: present
+
+- name: Set vm.swappiness (use RAM first, swap only under pressure)
+  ansible.posix.sysctl:
+    name: vm.swappiness
+    value: '10'
+    state: present
+    reload: true
+
+- name: Set vm.vfs_cache_pressure
+  ansible.posix.sysctl:
+    name: vm.vfs_cache_pressure
+    value: '50'
+    state: present
+    reload: true

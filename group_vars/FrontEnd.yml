@@ -1,0 +1,8 @@
+#SPDX-License-Identifier: MIT-0
+---
+# FrontEnd-specific variables — committed to git (not secrets).
+# Applies to: Traefik reverse proxy server.
+
+# Swap file size in megabytes (4096 = 4 GB).
+# Traefik is lightweight; 4 GB is a safe margin on a smaller server.
+swap_size_mb: 4096

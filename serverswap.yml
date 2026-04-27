@@ -1,0 +1,19 @@
+#SPDX-License-Identifier: MIT-0
+---
+# serverswap.yml — configure swap on all servers.
+#
+# swap_size_mb is set per group:
+#   group_vars/BackEnd.yml  → 8192 MB (8 GB)
+#   group_vars/FrontEnd.yml → 4096 MB (4 GB)
+#
+# Run standalone:  ansible-playbook -i inventories/hosts serverswap.yml
+# Dry run:         ansible-playbook -i inventories/hosts serverswap.yml --check
+
+- hosts: servers
+  become: true
+  gather_facts: true
+  vars:
+    ansible_user: "{{ adempiere_username }}"
+    ansible_port: "{{ custom_sshport }}"
+  roles:
+    - serverswap

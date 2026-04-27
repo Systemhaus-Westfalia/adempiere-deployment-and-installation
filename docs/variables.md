@@ -14,6 +14,17 @@ These must be set manually via `ansible-vault edit group_vars/all/vault.yml`.
 | `postgres_password` | `deploy-adempiere` role, `adempiere-restoredb` role | PostgreSQL superuser (`postgres`) password |
 | `adempiere_password` | `adempiere-restoredb` role | Password for the `adempiere` PostgreSQL user (falls back to `postgres_password` if not set) |
 
+## Per-group Variables
+
+These variables are set per inventory group and **committed to git** (not secrets, not operator-specific).
+
+| Variable | File | Value | Description |
+|---|---|---|---|
+| `swap_size_mb` | `group_vars/BackEnd.yml` | `8192` | Swap file size in MB for the BackEnd server (8 GB) |
+| `swap_size_mb` | `group_vars/FrontEnd.yml` | `4096` | Swap file size in MB for the FrontEnd server (4 GB) |
+
+---
+
 ## Deployment Variables (`group_vars/all/vars.yml`)
 
 | Variable | Used in | Description |
@@ -26,6 +37,14 @@ These must be set manually via `ansible-vault edit group_vars/all/vault.yml`.
 | `repo_version` | `deploy-adempiere` role | Branch or tag to deploy (e.g. `adempiere-trunk`, `main`) |
 | `key_name` | `genkey` role, `serversprep` role | SSH keypair filename under `ssh_keys/` |
 | `ansible_ssh_private_key_file` | All playbooks connecting to remote servers | Path to the project SSH private key (`ssh_keys/adempiere_installation_key`) |
+
+---
+
+## Role: `serverswap` — Defaults
+
+| Variable | Default | Description |
+|---|---|---|
+| `swap_size_mb` | `4096` | Fallback swap size in MB — overridden by `group_vars/BackEnd.yml` (8192) and `group_vars/FrontEnd.yml` (4096) |
 
 ---
 
