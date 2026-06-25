@@ -55,7 +55,7 @@ The FrontEnd has no equivalent entry point. The operator must run the individual
 
 ```bash
 ansible-playbook serversprep.yml    --limit FrontEnd
-ansible-playbook so-updates.yml     --limit FrontEnd
+ansible-playbook os-updates.yml     --limit FrontEnd
 ansible-playbook serversconf.yml    --limit FrontEnd
 ansible-playbook serverswap.yml     --limit FrontEnd
 ansible-playbook install-docker.yml --limit FrontEnd

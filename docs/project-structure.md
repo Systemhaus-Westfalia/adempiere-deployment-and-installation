@@ -36,17 +36,21 @@ deployment_and_installation/
 │   ├── adempiere_installation_key      # SSH private key — gitignored, never commit
 │   └── adempiere_installation_key.pub  # SSH public key — gitignored, deployed to servers by serversconf
 │
+├── logs/                              # Timestamped deployment logs — gitignored, never commit
+│   ├── deploy-backend-<timestamp>.log # Written by deploy-backend.sh (stdout + stderr)
+│   └── restore-db-<timestamp>.log     # Written by restore-db.sh (stdout + stderr)
+│
 │                                  # --- Orchestration playbooks ---
 │                                  # Chain individual playbooks into full deployment sequences.
 │                                  # Run one of these to execute multiple steps with a single command.
-├── main.yml                       # Base setup only: genkey → serversprep → so-updates → serversconf → deploy-vim → install-docker
+├── main.yml                       # Base setup only: genkey → serversprep → os-updates → serversconf → deploy-vim → install-docker
 ├── main-w-traefik.yml             # Full end-to-end: base setup + deploy-traefik + deploy-adempiere
 │
 │                                  # --- Individual playbooks ---
 │                                  # Each does exactly one thing. Can be run standalone or called by an orchestration playbook.
 ├── genkey.yml                     # Generate RSA keypair on the control node (localhost); stores it in ssh_keys/
 ├── serversprep.yml                # Distribute SSH public key to all servers servers
-├── so-updates.yml                 # OS dist-upgrade + conditional reboot
+├── os-updates.yml                 # OS dist-upgrade + conditional reboot
 ├── serversconf.yml                # Server hardening, user creation, SSH config
 ├── install-docker.yml             # Docker CE + Compose plugin
 ├── deploy-vim.yml                 # Vim editor + plugins
@@ -59,7 +63,7 @@ deployment_and_installation/
 └── roles/
     ├── genkey/                    # Generate RSA keypair
     ├── serversprep/               # SSH key distribution to remote servers
-    ├── so-updates/                # OS update + reboot handler
+    ├── os-updates/                # OS update + reboot handler
     ├── serversconf/               # Full server hardening
     ├── install-docker/            # Docker CE from official repo
     ├── deploy-vim/                # Vim + plugins (vim-airline, nerdtree, fzf, fugitive…)

@@ -54,7 +54,7 @@ all:
 
 | Group | Used by |
 |---|---|
-| `servers` | `serversprep.yml`, `so-updates.yml`, `serversconf.yml`, `serverswap.yml`, `install-docker.yml`, `deploy-vim.yml` |
+| `servers` | `serversprep.yml`, `os-updates.yml`, `serversconf.yml`, `serverswap.yml`, `install-docker.yml`, `deploy-vim.yml` |
 | `BackEnd` | `deploy-adempiere.yml`, `deploy-crontab.yml`, `adempiere-restoredb.yml` |
 | `FrontEnd` | `deploy-traefik.yml` |
 | `localhost` | `genkey.yml` |
@@ -65,14 +65,14 @@ all:
 
 `ansible_user` is never set in the inventory — each playbook sets its own connection user. There are two patterns depending on whether the playbook needs `gather_facts`:
 
-- **`gather_facts: false` + `pre_tasks: set_fact`** — used when the role does not need OS facts. `pre_tasks` run before any SSH connection, so `set_fact` can safely set `ansible_user` first. (`serversprep.yml`, `so-updates.yml`)
+- **`gather_facts: false` + `pre_tasks: set_fact`** — used when the role does not need OS facts. `pre_tasks` run before any SSH connection, so `set_fact` can safely set `ansible_user` first. (`serversprep.yml`, `os-updates.yml`)
 - **`gather_facts: true` + play-level `vars:`** — used when the role needs OS facts (e.g. to detect the distribution). Ansible connects to gather facts before `pre_tasks` run, so `set_fact` in `pre_tasks` would be too late. Play-level `vars:` are evaluated before gather_facts, so the correct user is in place for the initial connection. (`serversconf.yml`, `install-docker.yml`)
 
 | Playbook | User | Auth | gather_facts |
 |---|---|---|---|
 | `genkey.yml` | *(local)* | local connection — no SSH | `true` |
 | `serversprep.yml` | `root` | vault: `root_user_password` | `false` |
-| `so-updates.yml` | `root` | vault: `root_user_password` | `false` |
+| `os-updates.yml` | `root` | vault: `root_user_password` | `false` |
 | `serversconf.yml` | `root` | vault: `root_user_password` | `true` |
 | `install-docker.yml` | `adempiere_username` | vault: `adempiere_user_password` + `adempiere_user_become_pass`, custom port | `true` |
 | `deploy-vim.yml` | `adempiere_username` | vault: `adempiere_user_password` + `adempiere_user_become_pass`, custom port | `false` |

@@ -8,7 +8,7 @@
 - [serversprep.yml](#serversprep.yml)
 - [roles/serversprep/tasks/main.yml](#rolesserverspreptasksmainyml)
 - [inventories/hosts.yml and inventories/hosts_template.yml](#inventorieshostsyml-and-inventorieshosts_templateyml)
-- [so-updates.yml](#so-updatesyml)
+- [os-updates.yml](#os-updatesyml)
 - [serversconf.yml](#serversconfyml)
 - [install-docker.yml](#install-dockeryml)
 - [roles/install-docker/tasks/main.yml](#rolesinstall-dockertasksmainyml)
@@ -71,19 +71,19 @@ Shell script that provisions the BackEnd server from scratch after a reset. Runs
 
 | Step | Playbook | Notes |
 |---|---|---|
-| 0 | *(local)* | Deletes old SSH keypair from `ssh_keys/` — skipped in `--check` mode |
-| 1 | `genkey.yml` | Generates a fresh RSA keypair on the control node |
-| 2 | `serversprep.yml --limit BackEnd` | Distributes the public key to the server (root, port 22) |
-| 3 | `so-updates.yml --limit BackEnd` | OS update + reboot |
-| 4 | `serversconf.yml --limit BackEnd` | Full server hardening |
-| 5 | `install-docker.yml --limit BackEnd` | Docker CE (pinned to 28.x) |
-| 6 | `deploy-adempiere.yml` | ADempiere container stack |
+| 1 | *(local)* | Deletes old SSH keypair from `ssh_keys/` — skipped in `--check` mode |
+| 2 | `genkey.yml` | Generates a fresh RSA keypair on the control node |
+| 3 | `serversprep.yml --limit BackEnd` | Distributes the public key to the server (root, port 22) |
+| 4 | `os-updates.yml --limit BackEnd` | OS update + reboot |
+| 5 | `serversconf.yml --limit BackEnd` | Full server hardening |
+| 6 | `install-docker.yml --limit BackEnd` | Docker CE (pinned to 28.x) |
+| 7 | `deploy-adempiere.yml` | ADempiere container stack |
 
-**Why Step 0 deletes the keypair:**  
+**Why Step 1 deletes the keypair:**  
 `genkey.yml` uses `state: present` — it will not overwrite an existing keypair. After a server reset the old public key is gone from the server anyway, so keeping the old keypair on the control node would cause `serversprep.yml` to deploy a key that already existed. Deleting it first ensures a truly clean start.
 
 **`--check` mode caveat:**  
-`so-updates.yml` reboot tasks use `shell`/`command` and are skipped by Ansible in check mode — the dry run will not reflect the post-reboot state.
+Step 1 (keypair deletion) is skipped entirely in `--check` mode. `os-updates.yml` reboot tasks use `shell`/`command` and are also skipped — the dry run will not reflect the post-reboot state.
 
 **Live run safety:**  
 In live mode the script requires typing `YES` before proceeding, to prevent accidental runs against a production server.
@@ -283,9 +283,9 @@ The template includes a commented-out `backend2` block. To activate it: uncommen
 
 ---
 
-## so-updates.yml
+## os-updates.yml
 
-**Name:** `so-updates.yml`  
+**Name:** `os-updates.yml`  
 **Location:** project root
 
 **Description:**  
@@ -298,7 +298,7 @@ The template includes a commented-out `backend2` block. To activate it: uncommen
 - This playbook connects as `root` using the vault password, set via `set_fact` in `pre_tasks`.  
 - With `gather_facts: true`, Ansible would attempt to connect to collect OS facts *before* `pre_tasks` run — at that point `ansible_user` is not yet set, so the connection would use the control node's current OS user instead of root and fail.  
 - Setting `gather_facts: false` ensures `pre_tasks` run first and establish the correct connection user before any remote contact is made.  
-- The `so-updates` role does not use OS facts, so disabling fact gathering has no downside.
+- The `os-updates` role does not use OS facts, so disabling fact gathering has no downside.
 
 ---
 

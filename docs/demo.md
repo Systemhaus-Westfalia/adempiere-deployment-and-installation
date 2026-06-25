@@ -6,7 +6,7 @@
 - [deploy-backend.sh — full BackEnd run](#deploy-backendsh--full-backend-run)
   - [Script startup and pre-flight](#script-startup-and-pre-flight)
   - [Step 2: serversprep.yml — SSH key distribution](#step-2-serversprepyml--ssh-key-distribution)
-  - [Step 3: so-updates.yml — OS update and reboot](#step-3-so-updatesyml--os-update-and-reboot)
+  - [Step 3: os-updates.yml — OS update and reboot](#step-3-os-updatesyml--os-update-and-reboot)
   - [Step 4: serversconf.yml — Server hardening](#step-4-serversconfyml--server-hardening)
   - [Step 5: serverswap.yml — Swap configuration](#step-5-serverswapyml--swap-configuration)
   - [Step 6: install-docker.yml — Docker installation](#step-6-install-dockeryml--docker-installation)
@@ -105,28 +105,28 @@ Playbook run took 0 days, 0 hours, 0 minutes, 31 seconds
 
 ---
 
-### Step 3: `so-updates.yml` — OS update and reboot
+### Step 3: `os-updates.yml` — OS update and reboot
 
 Runs `apt dist-upgrade`, checks whether a reboot is required, and reboots if it is. Waits up to 5 minutes for the server to come back before continuing.
 
 ```
->>> Step 3: so-updates.yml — OS update + reboot
+>>> Step 3: os-updates.yml — OS update + reboot
 
-TASK [so-updates : INFO: Update all packages] **********************************
+TASK [os-updates : INFO: Update all packages] **********************************
 ok: [backend1] => {
     "msg": "host=backend1 | dist-upgrade + autoremove"
 }
 
-TASK [so-updates : Update all packages on a Debian/Ubuntu] *********************
+TASK [os-updates : Update all packages on a Debian/Ubuntu] *********************
 ok: [backend1]
 
-TASK [so-updates : Reboot the server and wait for it to come back] *************
+TASK [os-updates : Reboot the server and wait for it to come back] *************
 changed: [backend1]
 
-TASK [so-updates : Verify new update (optional)] *******************************
+TASK [os-updates : Verify new update (optional)] *******************************
 changed: [backend1]
 
-TASK [so-updates : Display new kernel version] *********************************
+TASK [os-updates : Display new kernel version] *********************************
 ok: [backend1] => {
     "uname_result.stdout_lines": [
         "Linux 6.12.86+deb13-cloud-amd64 x86_64"

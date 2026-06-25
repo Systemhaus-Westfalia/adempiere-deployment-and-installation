@@ -1,7 +1,11 @@
 # ADempiere Deployment & Installation
 
 - This project automates the deployment of [ADempiere ERP](https://github.com/adempiere/adempiere) onto Linux VPS servers using [Ansible](https://docs.ansible.com/).
-- It covers everything from the first SSH connection to a freshly provisioned server, through OS hardening and Docker installation, to a fully running, TLS-secured ADempiere instance.
+- It covers OS hardening, Docker installation, and the ADempiere container stack — from a freshly provisioned server to a fully running instance.
+
+> **Traefik (FrontEnd / HTTPS) is optional and not yet fully implemented.**  
+> ADempiere runs completely without it. The BackEnd deployment (`deploy-backend.sh`) works end-to-end.  
+> The FrontEnd (Traefik reverse proxy + Let's Encrypt TLS) is partially implemented — key pieces are missing before it can be used in production. See [docs/traefik-status.md](docs/traefik-status.md) for the current state and open tasks.
 
 ---
 
@@ -19,9 +23,11 @@
 
 ## Control node
 
-The **control node** is your own workstation or laptop — the machine from which you run all commands. It is not a server being deployed. Nothing runs on it permanently once the deployment is complete.
+The **control node** is your own workstation or laptop — the machine from which you run all commands.   
+It is not a server being deployed. Nothing runs on it permanently once the deployment is complete.
 
-Ansible connects **outbound** from the control node to the servers over SSH and executes tasks remotely. The servers never initiate contact or pull configuration.
+Ansible connects **outbound** from the control node to the servers over SSH and executes tasks remotely.   
+The servers never initiate contact or pull configuration.
 
 All operator-specific files live on the control node: `group_vars/all/vars.yml`, `group_vars/all/vault.yml`, the SSH keypair (`ssh_keys/`), the vault password file (`~/.vault_pass.txt`), and all deployment logs (`logs/`). None of these are committed to git.
 
@@ -76,13 +82,12 @@ Your local machine  ──── SSH ────►  Public-facing server.
                                       by this project.
 ```
 
-By the end of this automation, the following will be in place:
+After a full BackEnd deployment, the following will be in place:
 
 - Both servers are **hardened**: SSH runs on a custom port, root login is disabled, only key-based authentication is allowed, automatic security updates are enabled.  
 - Both servers have **Docker CE** installed.  
-- The **BackEnd** server runs the ADempiere ERP container stack (application + PostgreSQL database), cloned from the Systemhaus Westfalia GitHub repository.  
-- The **FrontEnd** server runs **Traefik**, a reverse proxy that receives HTTPS traffic from the internet, terminates TLS using a certificate automatically issued by Let's Encrypt via the Cloudflare DNS API, and forwards requests to the BackEnd.  
-- The system is reachable at the domain configured in `group_vars/all/vars.yml`.
+- The **BackEnd** server runs the ADempiere ERP container stack (application + PostgreSQL database).  
+- Optionally: the **FrontEnd** server runs **Traefik**, a reverse proxy that terminates HTTPS using a Let's Encrypt certificate issued via the Cloudflare DNS API and forwards requests to the BackEnd. See [docs/traefik-status.md](docs/traefik-status.md) before enabling this.
 
 Configuration is split across two gitignored files under `group_vars/all/`:  
 - `vars.yml` — plain-text deployment values (SSH port, username, key path). Copy from `group_vars/vars_template.yml`.  
@@ -99,6 +104,8 @@ Ansible connects to the servers over SSH and handles everything remotely.
 ---
 
 ## Ansible Building Blocks
+
+> New to Ansible? See [docs/technologies.md](docs/technologies.md) for a short introduction to playbooks and roles with a concrete example before reading on.
 
 Ansible projects are built from a small set of composable concepts. Here is how they relate to each other:
 

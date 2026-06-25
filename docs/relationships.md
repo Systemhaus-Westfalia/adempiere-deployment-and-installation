@@ -134,7 +134,7 @@ HOST GROUP                     PLAYBOOK                       ROLE
 ─────────────────────────────  ─────────────────────────────  ─────────────────────────
 localhost                      genkey.yml                 --> genkey
 servers (both servers)         serversprep.yml            --> serversprep
-                               so-updates.yml             --> so-updates
+                               os-updates.yml             --> os-updates
                                serversconf.yml            --> serversconf
                                serverswap.yml             --> serverswap
                                install-docker.yml         --> install-docker
@@ -174,7 +174,7 @@ PLAYBOOK                       IMPORTS (step 1, step 2, step 3 ...)
 ─────────────────────────────  ──────────────────────────────────────────────────────
 main.yml                   --> 1. genkey.yml
 (full base setup)              2. serversprep.yml
-                               3. so-updates.yml
+                               3. os-updates.yml
                                4. serversconf.yml
                                5. deploy-vim.yml
                                6. install-docker.yml
@@ -213,7 +213,7 @@ The table shows which components are actively used per role.
 |---|---|---|---|---|---|---|
 | `genkey` | ✓ | ✓ | ✓ | — | — | — |
 | `serversprep` | ✓ | ✓ | ✓ | — | — | — |
-| `so-updates` | ✓ | ✓ | ✓ | — | — | — |
+| `os-updates` | ✓ | ✓ | ✓ | — | — | — |
 | `serversconf` | ✓ | ✓ | ✓ | ✓ (5) | ✓ (2) | ✓ (SSH pub keys) |
 | `install-docker` | ✓ | ✓ | ✓ | — | — | — |
 | `deploy-vim` | ✓ | ✓ | ✓ | — | — | — |
@@ -371,7 +371,7 @@ STEP  PLAYBOOK              WHAT IT DOES                                       T
 ────  ────────────────────  ─────────────────────────────────────────────────  ───────────────────
 1     genkey.yml            Generate RSA keypair                               localhost
 2     serversprep.yml       Distribute SSH public key to both servers          servers (root)
-3     so-updates.yml        OS dist-upgrade + conditional reboot               servers (root)
+3     os-updates.yml        OS dist-upgrade + conditional reboot               servers (root)
 4     serversconf.yml       Server hardening, user creation, SSH config        servers (root)
 5     serverswap.yml        Swap file + kernel tuning (vm.swappiness=10)       servers (adempiere_username)
 6     deploy-vim.yml        Vim + plugins                                      servers (adempiere_username)
@@ -390,7 +390,7 @@ STEP  PLAYBOOK              WHAT IT DOES                                       T
 ────  ────────────────────  ─────────────────────────────────────────────────  ───────────────────
 1     genkey.yml            Generate RSA keypair                               localhost
 2     serversprep.yml       Distribute SSH public key to both servers          servers (root)
-3     so-updates.yml        OS dist-upgrade + conditional reboot               servers (root)
+3     os-updates.yml        OS dist-upgrade + conditional reboot               servers (root)
 4     serversconf.yml       Server hardening, user creation, SSH config        servers (root)
 5     install-docker.yml    Docker CE + Compose plugin                         servers (adempiere_username)
 6     deploy-traefik.yml    Traefik reverse proxy                              FrontEnd (adempiere_username)
@@ -431,7 +431,7 @@ GROUP         PLAYBOOK                   USER        PORT
 localhost     genkey.yml                 —           —
 ────────────────────────────────────────────────────────────────────
 servers       serversprep.yml            root        22
-              so-updates.yml             root        22
+              os-updates.yml             root        22
               serversconf.yml            root        22
 ────────────────────────────────────────────────────────────────────
 servers       serverswap.yml             adempiere_username   custom_sshport

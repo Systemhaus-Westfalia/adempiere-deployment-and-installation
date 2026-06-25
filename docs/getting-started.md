@@ -4,11 +4,11 @@
 
 - [Deployment timeline](#deployment-timeline)
 - [Deployment phases](#deployment-phases)
-- [Phase 0 — One-time setup & pre-flight](#phase-0--one-time-setup--pre-flight)
-- [Phase 1 — BackEnd dry run](#phase-1--backend-dry-run)
-- [Phase 2 — BackEnd real run](#phase-2--backend-real-run)
-- [Phase 3 — FrontEnd dry run](#phase-3--frontend-dry-run)
-- [Phase 4 — FrontEnd real run](#phase-4--frontend-real-run)
+- [Phase 1 — One-time setup & pre-flight](#phase-1--one-time-setup--pre-flight)
+- [Phase 2 — BackEnd dry run](#phase-2--backend-dry-run)
+- [Phase 3 — BackEnd real run](#phase-3--backend-real-run)
+- [Phase 4 — FrontEnd dry run](#phase-4--frontend-dry-run)
+- [Phase 5 — FrontEnd real run](#phase-5--frontend-real-run)
 - [Duration reference](#duration-reference)
 
 ---
@@ -38,7 +38,7 @@ This diagram shows the sequence of every step, which server it targets, and the 
         │                    Root login is disabled permanently after serversconf.    │
         │                   ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─  ─  ─ ─ ─ ─ ─ ┘
         │
-        ├─ so-updates.yml ─────► OS upgrade + reboot ──►  OS upgrade + reboot
+        ├─ os-updates.yml ─────► OS upgrade + reboot ──►  OS upgrade + reboot
         │
         ├─ serversconf.yml ────► harden SSH          ──►  harden SSH
         │                        create admin user         create admin user
@@ -67,7 +67,7 @@ This diagram shows the sequence of every step, which server it targets, and the 
 
 **★ One-time steps** (only needed once per keypair / server):
 - `genkey.yml` — only if `ssh_keys/adempiere_installation_key` does not exist yet
-- `serversprep.yml`, `so-updates.yml`, `serversconf.yml` — only on a fresh or reset server
+- `serversprep.yml`, `os-updates.yml`, `serversconf.yml` — only on a fresh or reset server
 
 **★★ Optional steps:**
 - `restore-db.sh` — only when migrating from an existing database backup
@@ -85,27 +85,27 @@ This diagram shows the sequence of every step, which server it targets, and the 
 
 | Phase | Target | Mode | Purpose |
 |---|---|---|---|
-| **0** | local | — | One-time control-node setup + pre-flight checks |
-| **1** | BackEnd | `--check` | Dry run — validate OS configuration (`serversprep`, `so-updates`, `serversconf`) |
-| **2** | BackEnd | real | Bring up ADempiere + PostgreSQL; verify directly on BackEnd IP |
-| **3** | FrontEnd | `--check` | Dry run — validate Traefik configuration |
-| **4** | FrontEnd | real | Bring up Traefik; full system reachable via domain + HTTPS |
+| **1** | local | — | One-time control-node setup + pre-flight checks |
+| **2** | BackEnd | `--check` | Dry run — validate OS configuration (`serversprep`, `os-updates`, `serversconf`) |
+| **3** | BackEnd | real | Bring up ADempiere + PostgreSQL; verify directly on BackEnd IP |
+| **4** | FrontEnd | `--check` | Dry run — validate Traefik configuration |
+| **5** | FrontEnd | real | Bring up Traefik; full system reachable via domain + HTTPS |
 
-Phases 1 and 2 cover the BackEnd; phases 3 and 4 cover the FrontEnd.  
+Phases 2 and 3 cover the BackEnd; phases 4 and 5 cover the FrontEnd.  
 Within each server, a dry run (`--check`) comes first so you can verify configuration before making any real changes.
 
 Traefik is infrastructure: once running on the FrontEnd it stays there, routing traffic and renewing certificates automatically.   
 You do not reinstall it when you update ADempiere.
 
 > **Note on `--check` reliability:**   
-> For OS-level playbooks (`serversprep`, `so-updates`, `serversconf`) dry-run output is accurate.  
-> For Docker playbooks (`install-docker`, `deploy-adempiere`, `deploy-traefik`) `--check` is only run in Phase 3 (FrontEnd), after `serversconf.yml` has run for real and the user + custom SSH port exist. Output is approximate — images are not pulled and containers are not started, so some tasks may report `changed` or `skipped` inconsistently. The main value is validating your variable configuration and Jinja2 templates.
+> For OS-level playbooks (`serversprep`, `os-updates`, `serversconf`) dry-run output is accurate.  
+> For Docker playbooks (`install-docker`, `deploy-adempiere`, `deploy-traefik`) `--check` is only run in Phase 4 (FrontEnd), after `serversconf.yml` has run for real and the user + custom SSH port exist. Output is approximate — images are not pulled and containers are not started, so some tasks may report `changed` or `skipped` inconsistently. The main value is validating your variable configuration and Jinja2 templates.
 >
 > **Expected `--check` warning in `serversconf.yml`:** The "Add ADMIN ssh-keys" task will report a failure for `adempiere_username` followed by `...ignoring`. This is expected: in check mode the user creation task does not actually run, so the user does not exist yet when the key task runs. The error is suppressed with `ignore_errors: "{{ ansible_check_mode }}"` and does not affect real runs.
 
 ---
 
-## Phase 0 — One-time setup & pre-flight
+## Phase 1 — One-time setup & pre-flight
 
 Run these once on your **local machine** before any playbook. Nothing is sent to the servers yet.
 
@@ -194,7 +194,11 @@ If it fails, do not proceed — fix connectivity first. See the SSH / Network se
 
 ---
 
-## Phase 1 — BackEnd dry run
+## Phase 2 — BackEnd dry run
+
+> **`--limit` explained:**  
+> Several playbooks in this project target the `servers` group, which includes *both* the BackEnd and the FrontEnd. Adding `--limit BackEnd` tells Ansible to run the playbook only against the hosts in the `BackEnd` group — the FrontEnd is skipped entirely. Similarly, `--limit FrontEnd` restricts execution to the FrontEnd only. You can also limit to a single host by name (`--limit backend1`) or by IP. Without `--limit`, a multi-server playbook runs on all servers in the target group simultaneously.  
+> See the [Useful flags](running.md#limit-to-a-specific-host-or-group) section in running.md for more examples.
 
 > **If you have previously SSH'd to the BackEnd manually**, its fingerprint is already in `~/.ssh/known_hosts`. Remove it first so `serversprep.yml` can add it correctly:
 > ```bash
@@ -205,7 +209,7 @@ If it fails, do not proceed — fix connectivity first. See the SSH / Network se
 ```bash
 # genkey.yml was already run in the one-time setup above — skip if keypair exists
 ansible-playbook serversprep.yml    --limit BackEnd      --check
-ansible-playbook so-updates.yml     --limit BackEnd      --check
+ansible-playbook os-updates.yml     --limit BackEnd      --check
 ansible-playbook serversconf.yml    --limit BackEnd      --check
 ```
 
@@ -216,16 +220,28 @@ Review the output. Anything unexpected? Adjust `group_vars/all/vars.yml` or `gro
 
 ---
 
-## Phase 2 — BackEnd real run
+## Phase 3 — BackEnd real run
+
+**The simplest way — one script:**
+
+```bash
+./deploy-backend.sh
+```
+
+`deploy-backend.sh` runs all the steps below in the correct order, handles keypair management, removes stale SSH host keys, and asks for confirmation before making any changes. It also writes a timestamped log to `logs/`. See [running.md](running.md#deploy-backendsh--full-backend-provisioning) for the full step-by-step breakdown.
+
+**Alternatively — run each playbook individually:**
 
 ```bash
 ansible-playbook genkey.yml                         # Generate SSH keypair (skipped if already exists)
 ansible-playbook serversprep.yml    --limit BackEnd  # Distribute SSH key; needs root + port 22
-ansible-playbook so-updates.yml     --limit BackEnd  # OS update; may reboot, waits automatically
+ansible-playbook os-updates.yml     --limit BackEnd  # OS update; may reboot, waits automatically
 ansible-playbook serversconf.yml    --limit BackEnd  # Harden SSH, create user — root login disabled after this
 ansible-playbook install-docker.yml --limit BackEnd  # Install Docker CE
 ansible-playbook deploy-adempiere.yml                # Deploy ADempiere + PostgreSQL containers
 ```
+
+Use the individual commands when re-running after a partial failure — if `serversconf.yml` already ran, skip the first three and run only the remaining ones (see [running.md](running.md#re-running-after-a-partial-failure)).
 
 After this phase ADempiere is reachable directly at `http://<backend_ip>:<adempiere_port>` — no domain, no TLS. Use this to verify the application is running before touching the FrontEnd.
 
@@ -252,7 +268,7 @@ If anything is wrong, see [testing.md](testing.md) for diagnostics.
 
 ---
 
-## Phase 3 — FrontEnd dry run
+## Phase 4 — FrontEnd dry run
 
 Before proceeding, verify the FrontEnd is reachable:
 
@@ -263,17 +279,17 @@ ROOT_PASS=$(ansible-vault view group_vars/all/vault.yml | grep root_user_passwor
 **Expected:** `pong` from `frontend`.  
 If it fails, fix connectivity first. See the SSH / Network section in [testing.md](testing.md) for diagnostics.
 
-> **Constraint:** The Docker playbooks (`install-docker`, `deploy-traefik`) connect as `<admin_user>` on the custom SSH port. For `--check` to work on those, the `adempiere_username` user must already exist on the FrontEnd. The OS playbooks are dry-run first (root, port 22); then `serversconf.yml` is run for real to create the user; then the Docker playbooks are dry-run.
+> **Constraint:** The Docker playbooks (`install-docker`, `deploy-traefik`) connect as `<admin_user>` on the custom SSH port. For `--check` to work on those, the `adempiere_username` user must already exist on the FrontEnd. In Phase 4, the OS playbooks are dry-run first (root, port 22); then `serversconf.yml` is run for real to create the user; then the Docker playbooks are dry-run.
 
 ```bash
 # OS playbooks — accurate --check, connects as root on port 22
 ansible-playbook serversprep.yml    --limit FrontEnd --check
-ansible-playbook so-updates.yml     --limit FrontEnd --check
+ansible-playbook os-updates.yml     --limit FrontEnd --check
 ansible-playbook serversconf.yml    --limit FrontEnd --check
 
 # Run serversconf for real to create the adempiere_username user and change the SSH port
 ansible-playbook serversprep.yml    --limit FrontEnd
-ansible-playbook so-updates.yml     --limit FrontEnd
+ansible-playbook os-updates.yml     --limit FrontEnd
 ansible-playbook serversconf.yml    --limit FrontEnd
 
 # Now --check the Docker playbooks
@@ -283,7 +299,7 @@ ansible-playbook deploy-traefik.yml                  --check  # approximate
 
 ---
 
-## Phase 4 — FrontEnd real run
+## Phase 5 — FrontEnd real run
 
 ```bash
 ansible-playbook install-docker.yml --limit FrontEnd  # Install Docker CE
@@ -322,7 +338,7 @@ If anything is wrong, see [testing.md](testing.md) for diagnostics.
 |---|---|---|---|
 | `genkey.yml` | localhost | seconds | Skipped if `ssh_keys/adempiere_installation_key` already exists |
 | `serversprep.yml` | per server | seconds | Needs root password in vault and port 22 open |
-| `so-updates.yml` | per server | 5–15 min | May reboot; waits automatically for server to return |
+| `os-updates.yml` | per server | 5–15 min | May reboot; waits automatically for server to return |
 | `serversconf.yml` | per server | 2–5 min | After this, root login is disabled and SSH port changes |
 | `install-docker.yml` | per server | 2–5 min | Docker needed on both: BackEnd for ADempiere/PostgreSQL, FrontEnd for Traefik/socket-proxy |
 | `deploy-adempiere.yml` | BackEnd | 5–10 min | Starts containers; waits for health checks |

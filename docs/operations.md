@@ -24,7 +24,7 @@ ADempiere is the **application** — deployed and updated independently, without
 |---|---|---|
 | Update ADempiere | `deploy-adempiere.yml` | No |
 | Restore database | `adempiere-restoredb.yml` | No |
-| OS security update | `so-updates.yml` | Yes — schedule carefully |
+| OS security update | `os-updates.yml` | Yes — schedule carefully |
 | Add SSH key | `serversconf.yml` (single task) | Yes |
 | Change Traefik config | `deploy-traefik.yml` | Yes |
 | Add a customer | manual or `deploy-traefik.yml` | Yes |
@@ -141,7 +141,7 @@ ansible-playbook deploy-adempiere.yml -e "repo_version=my-branch"
 Safe to run on live servers. If a kernel update requires a reboot, Ansible handles it automatically and waits for the server to come back.
 
 ```bash
-ansible-playbook so-updates.yml
+ansible-playbook os-updates.yml
 ```
 
 ---
@@ -152,10 +152,11 @@ ansible-playbook so-updates.yml
 
 2. Set the two operator-facing variables in `group_vars/all/vars.yml`:
    ```yaml
-   restore_backup_filename: "your-backup-file.sql.gz"
+   restore_backup_filename: "adempiere-2026-06-15-120000.backup.gz"
    restore_local_dir: "/path/to/directory/on/control/node"
    ```
-   Supported formats: `.sql.gz` and `.tar.gz` — the role detects the format automatically.
+   Supported formats: `.backup.gz`, `.sql.gz`, and `.tar.gz` — the role detects the format automatically from the filename.
+   The standard adempiere-ui-gateway backup script produces `.backup.gz` files (plain SQL compressed with gzip, ~80% size reduction).
 
 3. Run the restore:
    ```bash

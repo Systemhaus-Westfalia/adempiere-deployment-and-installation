@@ -21,7 +21,7 @@
 ```
 Step 1  genkey.yml              Generate RSA keypair on the control node
 Step 2  serversprep.yml         Distribute SSH key to servers (root, password auth)
-Step 3  so-updates.yml          Full OS update + reboot if a new kernel was installed
+Step 3  os-updates.yml          Full OS update + reboot if a new kernel was installed
 Step 4  serversconf.yml         Harden SSH, create user (adempiere_username), install packages
 Step 5  install-docker.yml      Install Docker CE from official repo
 Step 6  deploy-vim.yml          Install Vim + plugins  [optional]
@@ -90,7 +90,7 @@ After this step you can SSH as root with your key, but Ansible still uses the va
 Full `apt dist-upgrade` on all `servers` servers. Reboots automatically if a new kernel was installed and waits up to 5 minutes for the server to come back.
 
 ```bash
-ansible-playbook so-updates.yml
+ansible-playbook os-updates.yml
 ```
 
 Can take 5–15 minutes depending on pending updates.
