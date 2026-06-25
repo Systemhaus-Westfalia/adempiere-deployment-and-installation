@@ -1,37 +1,26 @@
 # Security Notes
 
-## ⚠ Plaintext Cloudflare Credentials — Fix Before Pushing to GitHub
+## Cloudflare Credentials
 
-`roles/deploy-traefik/vars/main.yml` currently contains real credentials in plaintext:
+Cloudflare API credentials (`cloudflare_token` and `cloudflare_email`) must never be stored in plain text in committed files.
 
-```yaml
-cloudflare_tocken: <actual-api-token>
-cloudflare_email: <actual-email>
+**Current state (correctly configured):**
+
+- `roles/deploy-traefik/vars/main.yml` contains only placeholder values and a comment pointing to the vault.
+- The real credentials must be placed in `group_vars/all/vault.yml` (encrypted, gitignored).
+- Use `group_vars/vault_template.yml` as a starting point — it already contains the two variables with placeholder values and instructions.
+
+```bash
+ansible-vault edit group_vars/all/vault.yml
 ```
 
-**This file will be committed to git as-is.** Rotate the token and move it to the vault before the first push.
+Add:
+```yaml
+cloudflare_token: "your-cloudflare-api-token"   # Zone:DNS:Edit permission required
+cloudflare_email: "your-cloudflare-account-email"
+```
 
-**Recommended fix:**
-
-1. Rotate the Cloudflare API token (generate a new one in the Cloudflare dashboard, revoke the old one).
-
-2. Add the new values to the vault:
-   ```bash
-   ansible-vault edit group_vars/all/vault.yml
-   ```
-   Add (with corrected spelling):
-   ```yaml
-   cloudflare_token: "your-new-token"
-   cloudflare_email: "your-email"
-   ```
-
-3. Clear `roles/deploy-traefik/vars/main.yml` to a comment only:
-   ```yaml
-   # Cloudflare credentials are stored in the vault (group_vars/all/vault.yml)
-   # Variables: cloudflare_token, cloudflare_email
-   ```
-
-4. Update the template `roles/deploy-traefik/templates/.env.j2` and `roles/deploy-traefik/templates/traefik.yaml.j2` to use `cloudflare_token` (correct spelling).
+If a secret is ever accidentally committed, rotate it immediately at the Cloudflare dashboard and update the vault.
 
 ---
 

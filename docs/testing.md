@@ -242,7 +242,7 @@ tail -20 /docker/traefik/logs/traefik.log
 
 **Expected:** No `error` entries. Certificate messages should show `certificate obtained` or `using cached certificate`.  
 **Failure:**
-- Certificate errors → DNS record not pointing to FrontEnd IP, or Cloudflare API token invalid. Check `roles/deploy-traefik/vars/main.yml`.
+- Certificate errors → DNS record not pointing to FrontEnd IP, or Cloudflare API token invalid. Check `cloudflare_token` in `group_vars/all/vault.yml`.
 - Routing errors → check `app-adempiere.yaml` in `/docker/traefik/config/`.
 
 ---

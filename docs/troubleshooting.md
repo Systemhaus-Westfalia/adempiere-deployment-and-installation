@@ -100,7 +100,7 @@ tail -f /docker/traefik/logs/traefik.log
 **Common causes:**
 - Cloudflare API token is wrong or has insufficient permissions (`Zone:DNS:Edit` required)
 - DNS record does not yet point to the correct IP
-- Token in `roles/deploy-traefik/vars/main.yml` was not updated before deployment
+- Cloudflare token in `group_vars/all/vault.yml` is missing or incorrect
 
 ---
 

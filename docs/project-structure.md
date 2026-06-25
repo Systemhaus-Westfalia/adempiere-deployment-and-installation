@@ -102,7 +102,7 @@ roles/<role-name>/
 | `roles/adempiere-restoredb/files/` | PostgreSQL backup files (`.sql.gz`) to be restored |
 | `roles/deploy-adempiere/templates/override.env.j2` | Generates the Docker Compose environment file with runtime values |
 | `roles/deploy-traefik/templates/app-adempiere.yaml.j2` | Traefik routing rules for ADempiere |
-| `roles/deploy-traefik/vars/main.yml` | ⚠ Contains Cloudflare credentials — see [security.md](security.md) |
+| `roles/deploy-traefik/vars/main.yml` | Cloudflare credential placeholders — real values go in `group_vars/all/vault.yml`; see [security.md](security.md) |
 
 ---
 

@@ -53,8 +53,6 @@ ansible-playbook genkey.yml
 
 Idempotent — skips key generation if `ssh_keys/adempiere_installation_key` already exists.
 
-> **Known issue:** `genkey.yml` has a typo `connection: loca1` (digit `1`). Ansible warns but falls back correctly to local execution. See [known-issues.md](known-issues.md).
-
 ---
 
 ## Step 2 — Distribute SSH Key
@@ -122,7 +120,7 @@ What it does:
 - Installs: `docker-ce`, `docker-ce-cli`, `containerd.io`, `docker-buildx-plugin`, `docker-compose-plugin`
 - Enables and starts the Docker service
 - Creates the `/docker` directory (base for all container config files)
-- Adds the Ansible user to the `docker` group
+- Ensures the `docker` OS group exists (required by the Docker daemon; the admin user is deliberately **not** added to it — all Docker commands use `sudo` instead)
 
 ---
 
