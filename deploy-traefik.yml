@@ -3,6 +3,10 @@
   gather_facts: false
 
   pre_tasks:
+    - name: Skip Traefik deployment (deploy_traefik is false or not set)
+      ansible.builtin.meta: end_play
+      when: not (deploy_traefik | default(false))
+
     - name: Assign user for role
       ansible.builtin.set_fact:
         ansible_user: "{{ adempiere_username }}"

@@ -40,3 +40,54 @@ repo_version: adempiere-trunk
 # Timezone for containers (e.g. Europe/Berlin, America/New_York).
 # See https://en.wikipedia.org/wiki/List_of_tz_database_time_zones
 timezone: your-timezone
+
+# System locale configured on all servers during initial setup (serversconf role).
+# The locale must be available in the OS. Common values: en_US.UTF-8, de_DE.UTF-8
+server_locale: en_US.UTF-8
+
+# ---------------------------------------------------------------------------
+# Application deployment
+# ---------------------------------------------------------------------------
+
+# Base directory on the BackEnd server where the ADempiere stack is cloned and run.
+# The repository is cloned to {{ install_path }}/adempiere-ui-gateway/.
+# Role default: /opt/development
+install_path: /opt/development
+
+# ---------------------------------------------------------------------------
+# Traefik reverse proxy (opt-in)
+# ---------------------------------------------------------------------------
+# Set deploy_traefik: true to enable the Traefik FrontEnd deployment.
+#   false (default) — BackEnd-only deployment: ADempiere accessible directly by IP, no TLS.
+#   true            — enables Traefik deployment (main-w-traefik.yml or deploy-traefik.yml).
+#                     Requires dns_domain, cloudflare_token, and cloudflare_email in vault.yml.
+#                     Also requires a DNS record pointing your domain to the FrontEnd IP
+#                     BEFORE running deploy-traefik.yml (Let's Encrypt validates immediately).
+#
+# ⚠ WARNING: The Traefik workflow is partially implemented.
+#   Known gaps: no deploy-frontend.sh orchestration script, no dashboard authentication.
+#   See docs/known-issues.md and docs/traefik-status.md for the full list before enabling.
+#   Enabling Traefik without completing the setup WILL cause deployment errors.
+deploy_traefik: false
+
+# DNS provider used for the Let's Encrypt ACME DNS-01 challenge.
+# Default and only tested provider: cloudflare.
+# Other Traefik-supported providers: route53, digitalocean, dnsimple, etc.
+# See https://doc.traefik.io/traefik/https/acme/#providers
+# Only relevant when deploy_traefik: true.
+traefik_dns_provider: cloudflare
+
+# ---------------------------------------------------------------------------
+# Database restore (optional — only needed when restoring from a backup)
+# ---------------------------------------------------------------------------
+# Uncomment and fill in when running adempiere-restoredb.yml or restore-db.sh.
+# restore_backup_filename: "your-backup.sql.gz"   # filename on the control node
+# restore_local_dir: "/path/to/backup/on/control-node"
+# restore_remote_backup_dir: "{{ install_path }}/adempiere-ui-gateway/docker-compose/postgresql/postgres_backups"
+# keep_restore_file: true   # keep the archive on the server after restore (default: true)
+
+# Post-restore SQL script (optional — only when a patch SQL must run after restore)
+# post_restore_sql_enabled: false
+# post_restore_sql_filename: "patch.sql"
+# post_restore_sql_local_dir: "/path/to/sql/on/control-node"
+# post_restore_sql_remote_dir: "/tmp"

@@ -11,12 +11,9 @@ Other playbooks (`deploy-adempiere.yml`, `install-docker.yml`) set `ansible_port
 
 ---
 
-## 2. Typo in `genkey.yml` — `connection: loca1`
+## ~~2. Typo in `genkey.yml` — `connection: loca1`~~ ✓ Fixed
 
-**File:** `genkey.yml`, line 3
-**Problem:** `connection: loca1` uses the digit `1` instead of the letter `l`. Should be `connection: local`.
-**Current behavior:** Ansible warns about an unknown connection plugin and falls back to its default, which happens to work correctly for localhost. The play succeeds.
-**Fix:** Change `loca1` → `local` in `genkey.yml`.
+`genkey.yml` already has `connection: local` — no change was needed.
 
 ---
 
@@ -47,6 +44,19 @@ Vault variables `cloudflare_token` and `cloudflare_email` added to `group_vars/v
 ## ~~6. `cloudflare_tocken` variable name is misspelled~~ ✓ Fixed
 
 Renamed to `cloudflare_token` in `roles/deploy-traefik/vars/main.yml` and `roles/deploy-traefik/templates/.env.j2`.
+
+---
+
+## 8. Traefik workflow is partially implemented — do not enable without completing the setup
+
+**Variable:** `deploy_traefik` in `group_vars/all/vars.yml`  
+**Problem:** Setting `deploy_traefik: true` runs `deploy-traefik.yml`, but the FrontEnd workflow has known gaps:
+- No `deploy-frontend.sh` orchestration script (the BackEnd has `deploy-backend.sh`; the FrontEnd has no equivalent entry point)
+- Traefik dashboard exposed without authentication (`api.insecure: true` — see item 4 above)
+- DNS for your domain must point to the FrontEnd IP **before** running `deploy-traefik.yml` — Let's Encrypt validates the domain immediately on first startup; if DNS is not live the certificate request fails and the deployment stops  
+
+Enabling Traefik without addressing these gaps WILL cause deployment errors or expose the dashboard publicly.  
+**See:** `docs/traefik-status.md` for the full status and a community contribution invitation.
 
 ---
 

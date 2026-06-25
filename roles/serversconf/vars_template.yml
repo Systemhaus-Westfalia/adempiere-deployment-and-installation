@@ -1,0 +1,41 @@
+#SPDX-License-Identifier: MIT-0
+---
+# Template for roles/serversconf/vars/main.yml
+#
+# This file documents every variable that must be present in the encrypted
+# roles/serversconf/vars/main.yml before running serversconf.yml.
+#
+# HOW TO USE:
+#   1. Create the encrypted vars file (first time):
+#        ansible-vault create roles/serversconf/vars/main.yml
+#      Or copy this template and encrypt it:
+#        cp roles/serversconf/vars_template.yml roles/serversconf/vars/main.yml
+#        # fill in your values, then:
+#        ansible-vault encrypt roles/serversconf/vars/main.yml
+#
+#   2. Edit later:
+#        ansible-vault edit roles/serversconf/vars/main.yml
+#
+#   Never commit roles/serversconf/vars/main.yml in decrypted form.
+#   This template file is safe to commit — it contains only placeholders.
+#
+# NOTE: roles/serversconf/vars/main.yml uses the same vault password as
+#       group_vars/all/vault.yml (configured via vault_password_file in ansible.cfg).
+
+# ---------------------------------------------------------------------------
+# Admin user identity
+# ---------------------------------------------------------------------------
+
+# The non-root system user created on every server by serversconf.yml.
+# Must match adempiere_username in group_vars/all/vars.yml.
+adempiere_username: your-admin-username
+
+# SHA-512 hashed password for the admin user's login account.
+# Generate with:
+#   mkpasswd --method=sha-512        (install the 'whois' package if needed)
+# The output starts with $6$ and is safe to store encrypted in the vault.
+your_password: "$6$replace-this-with-real-hash"
+
+# Home directory path for the admin user.
+# Typically /home/<adempiere_username> — adjust if your server uses a different layout.
+user_path: /home/your-admin-username

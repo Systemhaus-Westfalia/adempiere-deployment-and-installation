@@ -31,8 +31,12 @@ These variables are set per inventory group and **committed to git** (not secret
 |---|---|---|
 | `adempiere_username` | All post-hardening playbooks, `serversconf` role | Admin username created on every server — also defined here as a non-secret config value |
 | `custom_sshport` | All post-hardening playbooks, `serversconf` role | Custom SSH port — serversconf moves SSH from 22 to this port |
-| `dns_domain` | `deploy-traefik` role | Base domain for routing and TLS certificates (e.g. `example.com`) |
-| `timezone` | `deploy-traefik` role | Timezone for containers (e.g. `America/El_Salvador`, `Europe/Berlin`) |
+| `server_locale` | `serversconf` role | System locale configured on all servers (e.g. `en_US.UTF-8`, `de_DE.UTF-8`) |
+| `timezone` | `serversconf` role, `deploy-traefik` role | Timezone for the server and containers (e.g. `Europe/Berlin`) |
+| `dns_domain` | `deploy-traefik` role | Base domain for routing and TLS certificates (e.g. `example.com`). Required when `deploy_traefik: true`. |
+| `deploy_traefik` | `deploy-traefik.yml`, `main-w-traefik.yml` | Set to `true` to enable the Traefik FrontEnd deployment. Default: `false` (BackEnd-only). ⚠ The Traefik workflow is partially implemented — see `docs/traefik-status.md` before enabling. |
+| `traefik_dns_provider` | `deploy-traefik` role | DNS provider for the ACME DNS-01 challenge. Default: `cloudflare`. Only relevant when `deploy_traefik: true`. |
+| `install_path` | `deploy-adempiere` role | Base directory on the BackEnd server for the ADempiere stack. Default: `/opt/development` |
 | `repo_url` | `deploy-adempiere` role | Git repository URL for the ADempiere stack |
 | `repo_version` | `deploy-adempiere` role | Branch or tag to deploy (e.g. `adempiere-trunk`, `main`) |
 | `key_name` | `genkey` role, `serversprep` role | SSH keypair filename under `ssh_keys/` |
@@ -125,12 +129,14 @@ These variables are set per inventory group and **committed to git** (not secret
 | `servers` | built from `groups['BackEnd']` | List of BackEnd URLs for the ADempiere load balancer — derived automatically from the inventory at runtime; adding a host to the `BackEnd` group in `hosts.yml` is all that is needed |
 | `timezone` | *(set in `group_vars/all/vars.yml`)* | Timezone for the Traefik container |
 
-## Role: `deploy-traefik` — Vars *(⚠ move to vault — see [security.md](security.md))*
+## Role: `deploy-traefik` — Vars
+
+`roles/deploy-traefik/vars/main.yml` contains placeholder values only. The real values must be set in `group_vars/all/vault.yml` — see [security.md](security.md) and [vault.md](vault.md).
 
 | Variable | Description |
 |---|---|
-| `cloudflare_tocken` | Cloudflare API token *(misspelled — should be `cloudflare_token`)* |
-| `cloudflare_email` | Email for Let's Encrypt registration |
+| `cloudflare_token` | Cloudflare API token with `Zone:DNS:Edit` permission |
+| `cloudflare_email` | Email address of the Cloudflare account |
 
 ---
 
