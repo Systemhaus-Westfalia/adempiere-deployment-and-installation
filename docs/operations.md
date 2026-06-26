@@ -1,5 +1,7 @@
 # Operations & Day-2 Tasks
 
+This project is not just a one-time installer. The same Ansible playbooks used to provision a server are the primary tool for all ongoing administration: applying OS updates, rotating SSH keys, updating ADempiere, restoring databases, and verifying container health. Every operation runs from your local workstation over SSH — no need to log in to the server manually for routine tasks.
+
 ## Table of Contents
 
 - [Infrastructure vs. Application](#infrastructure-vs-application)
@@ -115,7 +117,7 @@ Option B is safer for production: the configuration is version-controlled and re
 
 ## Updating ADempiere to a New Version
 
-The role always pulls the latest commits from the configured branch (`repo_version`) on every run. If containers are already running, `start-all.sh` is skipped — only the git pull and `override.env` regeneration happen.
+The role always pulls the latest commits from the configured branch (`repo_version`) on every run. If containers are already running, `start-all.sh` is skipped — only the git pull and `override.env` regeneration happen. When the start sequence does run, `health-check.sh` is called automatically at the end; the play fails if any container or endpoint is unhealthy.
 
 To force a full restart (e.g. after a branch change or to pick up a new image):
 

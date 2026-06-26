@@ -1,9 +1,9 @@
 - name: "INFO: Run start-all.sh (first run — initializes DB and pulls images)"
   ansible.builtin.debug:
-    msg: "chdir={{ install_path }}/adempiere-ui-gateway/docker-compose | first run: DB init + image pull"
+    msg: "chdir={{ install_path }}/adempiere-ui-gateway/docker-compose | first run: DB init + image pull | profile={{ adempiere_profile }}"
 
 - name: Run start-all.sh (first run — initializes DB and pulls images)
-  ansible.builtin.command: "./start-all.sh"
+  ansible.builtin.command: "./start-all.sh {{ adempiere_profile }}"
   args:
     chdir: "{{ install_path }}/adempiere-ui-gateway/docker-compose"
   environment:
@@ -27,10 +27,10 @@
 
 - name: "INFO: Run start-all.sh (second run — clean start with initialized DB)"
   ansible.builtin.debug:
-    msg: "chdir={{ install_path }}/adempiere-ui-gateway/docker-compose | second run: clean start"
+    msg: "chdir={{ install_path }}/adempiere-ui-gateway/docker-compose | second run: clean start | profile={{ adempiere_profile }}"
 
 - name: Run start-all.sh (second run — clean start with initialized DB)
-  ansible.builtin.command: "./start-all.sh"
+  ansible.builtin.command: "./start-all.sh {{ adempiere_profile }}"
   args:
     chdir: "{{ install_path }}/adempiere-ui-gateway/docker-compose"
   environment:
@@ -39,3 +39,15 @@
 
 - name: Wait for stack to stabilize after second start
   ansible.builtin.include_tasks: wait.yml
+
+- name: "INFO: Run health-check.sh"
+  ansible.builtin.debug:
+    msg: "chdir={{ install_path }}/adempiere-ui-gateway/docker-compose | profile={{ adempiere_profile }}"
+
+- name: Run health-check.sh
+  ansible.builtin.command: "bash health-check.sh {{ adempiere_profile }}"
+  args:
+    chdir: "{{ install_path }}/adempiere-ui-gateway/docker-compose"
+  register: healthcheck_result
+  changed_when: false
+  failed_when: healthcheck_result.rc != 0

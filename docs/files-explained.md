@@ -461,14 +461,17 @@ On a fresh server, PostgreSQL runs a full database restore on its very first sta
 **Why the first start includes a full database restore:**  
 The PostgreSQL image is built from a custom `postgres.Dockerfile` that copies `postgresql/initdb.sh` into `/docker-entrypoint-initdb.d/`. PostgreSQL automatically runs every script in that directory when the data directory is empty — exactly once, on first start only. `initdb.sh` creates the `adempiere` user and database, then runs `pg_restore` on the seed backup (`postgresql/postgres_backups/seed.backup`, which is part of the cloned repository). This restore populates the full ADempiere schema and seed data and is the primary reason the first start takes 3–5 minutes. On all subsequent starts the data directory already exists and `initdb.sh` is skipped entirely.
 
-**Phase 1 — first `start-all.sh`**  
-Pulls all Docker images (several minutes on a fresh server) and starts all containers. PostgreSQL runs `initdb.sh` and restores the seed database. Dependent containers fail to connect to the DB and are restarted by Docker during this window — this is expected behavior. After `start-all.sh` exits, `wait.yml` is called: it polls for PostgreSQL running and ZK stable for ≥60 seconds, confirming the restore is complete.
+**Phase 1 — first `start-all.sh {{ adempiere_profile }}`**  
+Pulls all Docker images (several minutes on a fresh server) and starts all containers belonging to the configured profile. PostgreSQL runs `initdb.sh` and restores the seed database. Dependent containers fail to connect to the DB and are restarted by Docker during this window — this is expected behavior. After `start-all.sh` exits, `wait.yml` is called: it polls for PostgreSQL running and ZK stable for ≥60 seconds, confirming the restore is complete.
 
 **`stop-all.sh`**  
 Stops and removes all containers cleanly. Also removes `.env` (the Docker Compose environment file). `start-all.sh` regenerates `.env` from `override.env` on next run, so removing it is harmless and ensures a clean environment on the second start.
 
-**Phase 2 — second `start-all.sh`**  
+**Phase 2 — second `start-all.sh {{ adempiere_profile }}`**  
 Starts all containers with the DB already initialized. No dependency failures, no unexpected restarts — all containers come up stably in their correct startup order. `wait.yml` is called again to confirm PostgreSQL and ZK are stable before the play continues.
+
+**`health-check.sh {{ adempiere_profile }}`**  
+After the second start sequence is confirmed stable, `health-check.sh` is called with the same profile argument. It checks every container and HTTP endpoint belonging to the profile and exits non-zero if any check fails — which causes the Ansible play to fail immediately with a clear error. When `adempiere_profile` is `all`, all services are checked.
 
 **Why `environment: PWD:`**  
 `ansible.builtin.command` does not spawn a shell, so standard shell environment variables — including `PWD` — are not set. Docker Compose uses `$PWD` internally to resolve relative paths in volume mounts. When `$PWD` is absent, Docker Compose warns and defaults to a blank string, causing relative paths to resolve incorrectly. Setting `PWD` explicitly to the same path as `chdir` restores expected behaviour. Both `start-all.sh` and `stop-all.sh` tasks carry this setting.

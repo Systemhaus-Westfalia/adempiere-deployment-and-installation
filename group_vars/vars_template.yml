@@ -54,6 +54,13 @@ server_locale: en_US.UTF-8
 # Role default: /opt/development
 install_path: /opt/development
 
+# ADempiere UI Gateway start profile — passed to start-all.sh and health-check.sh.
+# Controls which subset of services is started and health-checked.
+# Default "all" starts every service defined in docker-compose.yml.
+# Available profiles: vue, zk, auth, cache, report, scheduler, storage, all
+# See adempiere-ui-gateway documentation for the full profile list.
+adempiere_profile: all
+
 # ---------------------------------------------------------------------------
 # Traefik reverse proxy (opt-in)
 # ---------------------------------------------------------------------------

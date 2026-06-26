@@ -1,7 +1,7 @@
 # ADempiere Deployment & Installation
 
-- This project automates the deployment of [ADempiere ERP](https://github.com/adempiere/adempiere) onto Linux VPS servers using [Ansible](https://docs.ansible.com/).
-- It covers OS hardening, Docker installation, and the ADempiere container stack — from a freshly provisioned server to a fully running instance.
+- This project automates the deployment and ongoing administration of [ADempiere ERP](https://github.com/adempiere/adempiere) on Linux VPS servers using [Ansible](https://docs.ansible.com/).
+- It covers the full lifecycle: OS hardening, Docker installation, ADempiere container stack deployment, database restores, OS updates, and more — from a freshly provisioned server to a running production instance, and every day-2 task thereafter.
 
 > **Traefik (FrontEnd / HTTPS) is optional and not yet fully implemented.**  
 > ADempiere runs completely without it. The BackEnd deployment (`deploy-backend.sh`) works end-to-end.  
@@ -13,9 +13,10 @@
 
 - [Control node](#control-node)
 - [The scenario](#the-scenario)
+- [Benefits](#benefits)
 - [Ansible building blocks](#ansible-building-blocks)
 - [Quick start](#quick-start)
-- [Running the deployment](#running-the-deployment)
+- [Scripts and playbooks](#scripts-and-playbooks)
 - [Documentation](#documentation)
 - [License](#license)
 
@@ -100,6 +101,30 @@ The vault password must be stored in `~/.vault_pass.txt` on the control node; `a
 
 You run all commands from your local machine.  
 Ansible connects to the servers over SSH and handles everything remotely.
+
+---
+
+## Benefits
+
+- **One-command server setup** — `./deploy-backend.sh` takes a freshly provisioned VPS and fully deploys ADempiere in a single step: OS hardening, swap, Docker, the full ADempiere container stack, and crontab — no manual steps in between.
+
+- **Hardening out of the box** — every server gets SSH port customization, key-based authentication only, root login disabled, MaxAuthTries enforced, modern cipher suites, and automatic unattended security upgrades — applied consistently to every deployment without any manual configuration.
+
+- **Not just a one-time installer — a full administration toolkit** — the same Ansible playbooks that deploy the server are also used day-to-day: apply OS updates, rotate SSH keys, update ADempiere to a new version, force a clean container restart, restore a database, or re-run any individual step in isolation. See [docs/operations.md](docs/operations.md).
+
+- **Database restore in two steps** — download a backup to your workstation, set two variables in `vars.yml`, and run `./restore-db.sh`. The script displays all restore parameters and asks for explicit confirmation before touching anything.
+
+- **Automatic health verification** — after every fresh deployment, `health-check.sh` runs automatically and checks every container and HTTP endpoint. The play fails immediately if anything is unhealthy, so a broken deployment is never silently accepted.
+
+- **Dry-run before you commit** — `./deploy-backend.sh --check` shows exactly what would change on the server without making a single write.
+
+- **Idempotent and self-correcting** — every playbook is safe to re-run at any time. If a step fails halfway through, fix the issue and re-run: steps that already succeeded report `ok`, pending steps pick up where they left off.
+
+- **Repeatable across environments** — the same playbooks deploy to development, staging, and production. Per-environment differences live entirely in gitignored `vars.yml` and `vault.yml`; nothing environment-specific is ever committed.
+
+- **Transparent by design** — both entry-point scripts display a full configuration summary — target server, all settings, vault variable status — before any confirmation prompt, so the operator knows exactly what will run before typing `YES`.
+
+- **All configuration in version control** — deployment logic, role defaults, and templates are committed; secrets are AES-256 encrypted in `vault.yml`. The exact deployment is fully reproducible at any point in time.
 
 ---
 
@@ -195,7 +220,9 @@ For the full walkthrough including dry runs and verification steps, see [docs/ge
 
 ---
 
-## Running the deployment
+## Scripts and Playbooks
+
+### Initial deployment
 
 Two entry-point scripts cover the two most common operations:
 
@@ -216,6 +243,20 @@ Two entry-point scripts cover the two most common operations:
 ```
 
 Both scripts write a timestamped log to `logs/` on the control node.
+
+### Day-2 administration
+
+After the initial deployment, the same Ansible playbooks handle all ongoing administration tasks. Run any of them independently from the control node:
+
+| Task | Command |
+|---|---|
+| Apply OS security updates (reboots automatically if needed) | `ansible-playbook os-updates.yml` |
+| Update ADempiere to the latest commit on the configured branch | `ansible-playbook deploy-adempiere.yml` |
+| Force a full ADempiere container restart (stop all first, then re-run) | SSH to server → `stop-all.sh`, then `ansible-playbook deploy-adempiere.yml` |
+| Add or rotate an admin SSH key | Add `.pub` to `roles/serversconf/files/public_keys/present/admin/`, then `ansible-playbook serversconf.yml --start-at-task "Add ADMIN ssh-keys"` |
+| Check container health | SSH to server → `bash health-check.sh` |
+
+For the full operations reference, see [docs/operations.md](docs/operations.md).
 
 For a step-by-step breakdown of each script, expected output, log location, re-run behaviour after a partial failure, and common failure modes, see [docs/running.md](docs/running.md).  
 For example output from a real successful run, see [docs/demo.md](docs/demo.md).

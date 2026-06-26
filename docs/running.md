@@ -43,7 +43,7 @@ Before running:
 | 5 | `serversconf.yml` | Full server hardening: create admin user, deploy SSH keys, install packages, harden SSH, configure unattended upgrades. After this step, root login is disabled and SSH moves to the custom port. |
 | 6 | `serverswap.yml` | Configure swap file (8 GB from `group_vars/BackEnd.yml`). |
 | 7 | `install-docker.yml` | Install Docker CE 28.x (pinned). |
-| 8 | `deploy-adempiere.yml` | Deploy the ADempiere container stack (clone repo, generate env file, two-run start). |
+| 8 | `deploy-adempiere.yml` | Deploy the ADempiere container stack (clone repo, generate env file, two-run start with profile `adempiere_profile`, healthcheck at the end). |
 | 9 | `deploy-crontab.yml` | Install crontab entries: `@reboot` start, `23:50` stop, `23:55` restart. |
 
 ### Logs
