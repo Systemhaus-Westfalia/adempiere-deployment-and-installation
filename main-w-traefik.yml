@@ -6,7 +6,7 @@
 ## SEQUENCE:
 ##   1. genkey.yml           — generate SSH keypair on the control node
 ##   2. serversprep.yml      — distribute SSH public key to both servers (root)
-##   3. so-updates.yml       — OS dist-upgrade + conditional reboot
+##   3. os-updates.yml       — OS dist-upgrade + conditional reboot
 ##   4. serversconf.yml      — server hardening, user creation, SSH config
 ##   5. install-docker.yml   — Docker CE + Compose plugin (both servers)
 ##   6. deploy-traefik.yml   — Traefik reverse proxy (FrontEnd only)
@@ -26,7 +26,7 @@
   import_playbook: serversprep.yml
 
 - name: Update servers
-  import_playbook: so-updates.yml
+  import_playbook: os-updates.yml
 
 - name: Configure servers
   import_playbook: serversconf.yml

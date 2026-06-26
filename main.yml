@@ -6,7 +6,7 @@
   import_playbook: serversprep.yml
 
 - name: Update servers
-  import_playbook: so-updates.yml
+  import_playbook: os-updates.yml
 
 - name: Configure servers
   import_playbook: serversconf.yml

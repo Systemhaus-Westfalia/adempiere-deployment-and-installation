@@ -6,7 +6,7 @@
 ## CONTEXT:
 ##   - Targets the 'servers' group (both BackEnd and FrontEnd servers).
 ##   - Runs as root (become: true). Requires root password from vault (root_user_password).
-##   - Must run AFTER serversprep.yml (SSH key distribution) and so-updates.yml (OS update).
+##   - Must run AFTER serversprep.yml (SSH key distribution) and os-updates.yml (OS update).
 ##   - After this role completes, root login is disabled. All subsequent playbooks connect
 ##     as the adempiere_username user on the custom SSH port (custom_sshport from group_vars).
 ##

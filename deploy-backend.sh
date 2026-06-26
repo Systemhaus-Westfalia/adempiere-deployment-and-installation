@@ -18,7 +18,7 @@
 #           server that still has the old public key deployed.
 #   Step 2  genkey.yml         — Generate RSA keypair (skipped if existing key was kept).
 #   Step 3  serversprep.yml    — Distribute the public key to the backend (root, port 22).
-#   Step 4  so-updates.yml     — OS update + reboot.
+#   Step 4  os-updates.yml     — OS update + reboot.
 #   Step 5  serversconf.yml    — Full server hardening: user, SSH, packages.
 #   Step 6  serverswap.yml     — Configure swap file (8 GB, from group_vars/BackEnd.yml).
 #   Step 7  install-docker.yml — Install Docker CE (pinned to 28.x).
@@ -27,7 +27,7 @@
 #
 # NOTE ON --check:
 #   Step 1 (keypair handling) is skipped in check mode — no local files are touched.
-#   so-updates.yml: the reboot task uses shell/command and is skipped by Ansible
+#   os-updates.yml: the reboot task uses shell/command and is skipped by Ansible
 #   in check mode, so the dry run will not reflect the post-reboot state.
 
 set -euo pipefail
@@ -231,8 +231,8 @@ ansible-playbook serversprep.yml --limit BackEnd $CHECK
 echo ""
 
 # Step 4 — OS updates + reboot
-echo ">>> Step 4: so-updates.yml — OS update + reboot"
-ansible-playbook so-updates.yml --limit BackEnd $CHECK
+echo ">>> Step 4: os-updates.yml — OS update + reboot"
+ansible-playbook os-updates.yml --limit BackEnd $CHECK
 echo ""
 
 # Step 5 — Full server hardening
