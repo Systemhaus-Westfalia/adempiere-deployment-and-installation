@@ -12,21 +12,21 @@
 #   2. Ensure ~/.vault_pass.txt exists (configured via vault_password_file in ansible.cfg).
 #
 # WHAT THIS SCRIPT DOES:
-#   Step 0  Keypair check — if an existing keypair is found, asks whether to delete it.
+#   Step 1  Keypair check — if an existing keypair is found, asks whether to delete it.
 #           Default is NO. Only deletes on explicit YES. If no keypair exists, generates
 #           one silently. WARNING: deleting regenerates the key and locks you out of any
 #           server that still has the old public key deployed.
-#   Step 1  genkey.yml         — Generate RSA keypair (skipped if existing key was kept).
-#   Step 2  serversprep.yml    — Distribute the public key to the backend (root, port 22).
-#   Step 3  so-updates.yml     — OS update + reboot.
-#   Step 4  serversconf.yml    — Full server hardening: user, SSH, packages.
-#   Step 5  serverswap.yml     — Configure swap file (8 GB, from group_vars/BackEnd.yml).
-#   Step 6  install-docker.yml — Install Docker CE (pinned to 28.x).
-#   Step 7  deploy-adempiere.yml — Deploy the ADempiere container stack.
-#   Step 8  deploy-crontab.yml  — Configure crontab: @reboot start, 23:50 stop, 23:55 restart.
+#   Step 2  genkey.yml         — Generate RSA keypair (skipped if existing key was kept).
+#   Step 3  serversprep.yml    — Distribute the public key to the backend (root, port 22).
+#   Step 4  so-updates.yml     — OS update + reboot.
+#   Step 5  serversconf.yml    — Full server hardening: user, SSH, packages.
+#   Step 6  serverswap.yml     — Configure swap file (8 GB, from group_vars/BackEnd.yml).
+#   Step 7  install-docker.yml — Install Docker CE (pinned to 28.x).
+#   Step 8  deploy-adempiere.yml — Deploy the ADempiere container stack.
+#   Step 9  deploy-crontab.yml  — Configure crontab: @reboot start, 23:50 stop, 23:55 restart.
 #
 # NOTE ON --check:
-#   Step 0 (keypair handling) is skipped in check mode — no local files are touched.
+#   Step 1 (keypair handling) is skipped in check mode — no local files are touched.
 #   so-updates.yml: the reboot task uses shell/command and is skipped by Ansible
 #   in check mode, so the dry run will not reflect the post-reboot state.
 
@@ -163,12 +163,12 @@ echo ""
 KEY_PATH="$SCRIPT_DIR/ssh_keys/adempiere_installation_key"
 REGEN_KEY=false
 
-# Step 0 — Keypair handling
+# Step 1 — Keypair handling
 if [[ -n "$CHECK" ]]; then
-  echo ">>> Step 0: Keypair check — skipped in dry-run mode"
+  echo ">>> Step 1: Keypair check — skipped in dry-run mode"
   echo ""
 elif [[ -f "$KEY_PATH" ]]; then
-  echo ">>> Step 0: SSH keypair already exists at ssh_keys/adempiere_installation_key"
+  echo ">>> Step 1: SSH keypair already exists at ssh_keys/adempiere_installation_key"
   echo ""
   echo "  ┌─────────────────────────────────────────────────────────────────┐"
   echo "  │  WARNING                                                        │"
@@ -190,52 +190,52 @@ elif [[ -f "$KEY_PATH" ]]; then
   fi
   echo ""
 else
-  echo ">>> Step 0: No keypair found — a new one will be generated."
+  echo ">>> Step 1: No keypair found — a new one will be generated."
   REGEN_KEY=true
   echo ""
 fi
 
-# Step 1 — Generate keypair
+# Step 2 — Generate keypair
 if [[ "$REGEN_KEY" == "true" ]]; then
-  echo ">>> Step 1: genkey.yml — Generate SSH keypair"
+  echo ">>> Step 2: genkey.yml — Generate SSH keypair"
   ansible-playbook genkey.yml $CHECK
 else
-  echo ">>> Step 1: genkey.yml — Skipped (existing keypair kept)"
+  echo ">>> Step 2: genkey.yml — Skipped (existing keypair kept)"
 fi
 echo ""
 
-# Step 2 — Distribute public key to backend (root, port 22)
-echo ">>> Step 2: serversprep.yml — Distribute SSH key to BackEnd"
+# Step 3 — Distribute public key to backend (root, port 22)
+echo ">>> Step 3: serversprep.yml — Distribute SSH key to BackEnd"
 ansible-playbook serversprep.yml --limit BackEnd $CHECK
 echo ""
 
-# Step 3 — OS updates + reboot
-echo ">>> Step 3: so-updates.yml — OS update + reboot"
+# Step 4 — OS updates + reboot
+echo ">>> Step 4: so-updates.yml — OS update + reboot"
 ansible-playbook so-updates.yml --limit BackEnd $CHECK
 echo ""
 
-# Step 4 — Full server hardening
-echo ">>> Step 4: serversconf.yml — Server hardening"
+# Step 5 — Full server hardening
+echo ">>> Step 5: serversconf.yml — Server hardening"
 ansible-playbook serversconf.yml --limit BackEnd $CHECK
 echo ""
 
-# Step 5 — Swap
-echo ">>> Step 5: serverswap.yml — Configure swap"
+# Step 6 — Swap
+echo ">>> Step 6: serverswap.yml — Configure swap"
 ansible-playbook serverswap.yml --limit BackEnd $CHECK
 echo ""
 
-# Step 6 — Docker CE
-echo ">>> Step 6: install-docker.yml — Install Docker"
+# Step 7 — Docker CE
+echo ">>> Step 7: install-docker.yml — Install Docker"
 ansible-playbook install-docker.yml --limit BackEnd $CHECK
 echo ""
 
-# Step 7 — ADempiere stack
-echo ">>> Step 7: deploy-adempiere.yml — Deploy ADempiere"
+# Step 8 — ADempiere stack
+echo ">>> Step 8: deploy-adempiere.yml — Deploy ADempiere"
 ansible-playbook deploy-adempiere.yml $CHECK
 echo ""
 
-# Step 8 — Crontab
-echo ">>> Step 8: deploy-crontab.yml — Configure crontab"
+# Step 9 — Crontab
+echo ">>> Step 9: deploy-crontab.yml — Configure crontab"
 ansible-playbook deploy-crontab.yml $CHECK
 echo ""
 

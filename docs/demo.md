@@ -5,13 +5,13 @@
 - [About this demo](#about-this-demo)
 - [deploy-backend.sh — full BackEnd run](#deploy-backendsh--full-backend-run)
   - [Script startup and pre-flight](#script-startup-and-pre-flight)
-  - [Step 2: serversprep.yml — SSH key distribution](#step-2-serversprepyml--ssh-key-distribution)
-  - [Step 3: os-updates.yml — OS update and reboot](#step-3-os-updatesyml--os-update-and-reboot)
-  - [Step 4: serversconf.yml — Server hardening](#step-4-serversconfyml--server-hardening)
-  - [Step 5: serverswap.yml — Swap configuration](#step-5-serverswapyml--swap-configuration)
-  - [Step 6: install-docker.yml — Docker installation](#step-6-install-dockeryml--docker-installation)
-  - [Step 7: deploy-adempiere.yml — ADempiere container stack](#step-7-deploy-adempiereyml--adempiere-container-stack)
-  - [Step 8: deploy-crontab.yml — Crontab](#step-8-deploy-crontabyml--crontab)
+  - [Step 3: serversprep.yml — SSH key distribution](#step-3-serversprepyml--ssh-key-distribution)
+  - [Step 4: os-updates.yml — OS update and reboot](#step-4-os-updatesyml--os-update-and-reboot)
+  - [Step 5: serversconf.yml — Server hardening](#step-5-serversconfyml--server-hardening)
+  - [Step 6: serverswap.yml — Swap configuration](#step-6-serverswapyml--swap-configuration)
+  - [Step 7: install-docker.yml — Docker installation](#step-7-install-dockeryml--docker-installation)
+  - [Step 8: deploy-adempiere.yml — ADempiere container stack](#step-8-deploy-adempiereyml--adempiere-container-stack)
+  - [Step 9: deploy-crontab.yml — Crontab](#step-9-deploy-crontabyml--crontab)
   - [Completion summary](#completion-summary)
 - [restore-db.sh — database restore run](#restore-dbsh--database-restore-run)
 - [What the output columns mean](#what-the-output-columns-mean)
@@ -53,7 +53,7 @@ See [docs/running.md](running.md) for the complete script reference.
 >>> Pre-flight: removing stale known_hosts entry for <backend_ip>
 /home/user/.ssh/known_hosts updated.
 
->>> Step 0: SSH keypair already exists at ssh_keys/adempiere_installation_key
+>>> Step 1: SSH keypair already exists at ssh_keys/adempiere_installation_key
 
   ┌─────────────────────────────────────────────────────────────────┐
   │  WARNING                                                        │
@@ -65,17 +65,17 @@ See [docs/running.md](running.md) for the complete script reference.
 
   Delete and regenerate the keypair? [yes/NO]:   Keeping existing keypair.
 
->>> Step 1: genkey.yml — Skipped (existing keypair kept)
+>>> Step 2: genkey.yml — Skipped (existing keypair kept)
 ```
 
 ---
 
-### Step 2: `serversprep.yml` — SSH key distribution
+### Step 3: `serversprep.yml` — SSH key distribution
 
 Distributes the project's public key to the server as `root` on port 22. After this step, all subsequent playbooks connect as `adempiere_username` using the key — no password needed.
 
 ```
->>> Step 2: serversprep.yml — Distribute SSH key to BackEnd
+>>> Step 3: serversprep.yml — Distribute SSH key to BackEnd
 
 PLAY [servers] *****************************************************************
 
@@ -105,12 +105,12 @@ Playbook run took 0 days, 0 hours, 0 minutes, 31 seconds
 
 ---
 
-### Step 3: `os-updates.yml` — OS update and reboot
+### Step 4: `os-updates.yml` — OS update and reboot
 
 Runs `apt dist-upgrade`, checks whether a reboot is required, and reboots if it is. Waits up to 5 minutes for the server to come back before continuing.
 
 ```
->>> Step 3: os-updates.yml — OS update + reboot
+>>> Step 4: os-updates.yml — OS update + reboot
 
 TASK [os-updates : INFO: Update all packages] **********************************
 ok: [backend1] => {
@@ -141,12 +141,12 @@ Playbook run took 0 days, 0 hours, 1 minutes, 19 seconds
 
 ---
 
-### Step 4: `serversconf.yml` — Server hardening
+### Step 5: `serversconf.yml` — Server hardening
 
 The most comprehensive step. Creates the admin user, deploys SSH keys, installs packages, sets the locale and timezone, configures unattended upgrades, and hardens SSH (custom port, key-only auth, no root login, modern cipher suites). SSH restarts at the end — the server is no longer reachable on port 22 after this.
 
 ```
->>> Step 4: serversconf.yml — Server hardening
+>>> Step 5: serversconf.yml — Server hardening
 
 TASK [serversconf : Install basic packages] ************************************
 changed: [backend1]
@@ -210,12 +210,12 @@ serversconf : Create unattended-upgrades configuration files ----------- 31.25s
 
 ---
 
-### Step 5: `serverswap.yml` — Swap configuration
+### Step 6: `serverswap.yml` — Swap configuration
 
 Creates an 8 GB swap file on the BackEnd server (`swap_size_mb: 8192` from `group_vars/BackEnd.yml`), adds it to `/etc/fstab`, and tunes `vm.swappiness=10` to favour RAM over swap.
 
 ```
->>> Step 5: serverswap.yml — Configure swap
+>>> Step 6: serverswap.yml — Configure swap
 
 TASK [serverswap : INFO: Swap status] ******************************************
 ok: [backend1] => {
@@ -247,12 +247,12 @@ Playbook run took 0 days, 0 hours, 1 minutes, 18 seconds
 
 ---
 
-### Step 6: `install-docker.yml` — Docker installation
+### Step 7: `install-docker.yml` — Docker installation
 
 Adds the official Docker repository, installs Docker CE 28.x (pinned to prevent automatic upgrade to 29+), and starts the Docker service.
 
 ```
->>> Step 6: install-docker.yml — Install Docker
+>>> Step 7: install-docker.yml — Install Docker
 
 TASK [install-docker : INFO: Validate supported OS] ****************************
 ok: [backend1] => {
@@ -290,12 +290,12 @@ Playbook run took 0 days, 0 hours, 2 minutes, 30 seconds
 
 ---
 
-### Step 7: `deploy-adempiere.yml` — ADempiere container stack
+### Step 8: `deploy-adempiere.yml` — ADempiere container stack
 
 The longest step. Clones the ADempiere repository, generates the environment file, and starts the container stack. On a fresh server the stack runs twice: the first run initialises the database and pulls all images (~524 seconds); the stack is then stopped and restarted cleanly so all containers come up in the correct order.
 
 ```
->>> Step 7: deploy-adempiere.yml — Deploy ADempiere
+>>> Step 8: deploy-adempiere.yml — Deploy ADempiere
 
 TASK [deploy-adempiere : INFO: Clone or update adempiere-ui-gateway repository] ***
 ok: [backend1] => {
@@ -367,12 +367,12 @@ deploy-adempiere : Clone or update repository --------------------------- 33.51s
 
 ---
 
-### Step 8: `deploy-crontab.yml` — Crontab
+### Step 9: `deploy-crontab.yml` — Crontab
 
 Deploys the start/stop/restart scripts and installs three crontab entries: start at `@reboot`, stop at `23:50`, restart at `23:55`.
 
 ```
->>> Step 8: deploy-crontab.yml — Configure crontab
+>>> Step 9: deploy-crontab.yml — Configure crontab
 
 TASK [deploy-crontab : INFO: Crontab configuration] ****************************
 ok: [backend1] => {
