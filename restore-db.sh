@@ -20,6 +20,76 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# --- Argument parsing (before any ansible call so --help is instant) ---
+
+case "${1:-}" in
+  --help|-h)
+    cat <<'EOF'
+
+Usage:
+  ./restore-db.sh         Restore a PostgreSQL backup into the running ADempiere stack.
+  ./restore-db.sh --help  This help.
+
+There is no dry-run mode — the restore always overwrites the database.
+
+WHAT IT DOES:
+  1  Pre-flight      — verify ~/.vault_pass.txt, backup file, and (if enabled)
+                       post-restore SQL file exist on the control node.
+  2  Multi-backend   — if more than one BackEnd host is in the inventory, shows
+                       an extra warning and asks for explicit YES before continuing.
+  3  Confirmation    — displays a full summary (file, format, destination, container,
+                       database, post-restore SQL status) and asks for YES.
+  4  Upload          — copies the backup archive to the BackEnd server.
+  5  Decompress      — auto-detects format from the filename:
+                         *.backup.gz  →  gzip -dk  →  *.backup  (plain SQL)
+                         *.sql.gz     →  gzip -dk  →  *.sql     (plain SQL)
+                         *.tar.gz     →  tar -xzf  →  *.sql     (plain SQL)
+  6  Drop & recreate — drops the adempiere database and recreates it with the
+                       correct owner.
+  7  Restore         — runs psql inside the PostgreSQL container via docker exec
+                       (no TCP port needs to be open).
+  8  Post-restore SQL — if post_restore_sql_enabled: true, uploads and executes
+                        the specified SQL script.
+  9  Cleanup         — removes the decompressed dump file; keeps or removes the
+                       archive based on keep_restore_file in vars.yml.
+
+PREREQUISITES:
+  ~/.vault_pass.txt                      vault password file (mode 0600)
+  group_vars/all/vars.yml                restore variables set (see below)
+  group_vars/all/vault.yml               adempiere_db_password set
+  inventories/hosts.yml                  at least one BackEnd host defined
+  Backup file on this machine at         restore_local_dir/restore_backup_filename
+  ADempiere stack running on BackEnd     (deploy-adempiere.yml completed)
+
+VARIABLES TO SET IN group_vars/all/vars.yml:
+  restore_backup_filename    filename of the backup archive (e.g. adempiere-2026-07-27.backup.gz)
+  restore_local_dir          directory on this control node that holds the backup file
+  (all other restore_* and post_restore_* variables have defaults)
+
+INTERACTION POINTS:
+  The script pauses at up to two points and waits for operator input.
+
+  #  When                              Prompt
+  -  --------------------------------  -----------------------------------------
+  1  More than one BackEnd host found  "Type YES to restore to ALL servers"
+  2  Before restore starts             "Type YES to proceed with the restore"
+
+  Point 1 only appears when the BackEnd inventory group has more than one host.
+
+Run ./check-config.sh restore-db first to validate all variables and files.
+EOF
+    exit 0
+    ;;
+  "")
+    ;;
+  *)
+    echo "ERROR: unknown argument '${1}'."
+    echo "Usage: ./restore-db.sh [--help]"
+    exit 1
+    ;;
+esac
+
 VARS_FILE="$SCRIPT_DIR/group_vars/all/vars.yml"
 
 # --- Read backend hosts from inventory ---
