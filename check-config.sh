@@ -17,9 +17,10 @@ BACKEND_YML="$SCRIPT_DIR/group_vars/BackEnd.yml"
 
 TARGET="${1:-}"
 
-if [[ "$TARGET" != "deploy-backend" && "$TARGET" != "restore-db" ]]; then
+_usage() {
     echo ""
-    echo "Usage: $0 deploy-backend | restore-db"
+    echo "Usage: ./check-config.sh deploy-backend | restore-db"
+    echo "       ./check-config.sh --help"
     echo ""
     echo "  deploy-backend"
     echo "      Scans and validates all variables required by deploy-backend.sh:"
@@ -37,8 +38,20 @@ if [[ "$TARGET" != "deploy-backend" && "$TARGET" != "restore-db" ]]; then
     echo "      source file. Reports at the end whether restore-db.sh is ready"
     echo "      to run."
     echo ""
+}
+
+case "$TARGET" in
+  --help|-h)
+    _usage
+    exit 0
+    ;;
+  deploy-backend|restore-db)
+    ;;
+  *)
+    _usage
     exit 1
-fi
+    ;;
+esac
 
 # --- Helpers ---
 
