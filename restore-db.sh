@@ -123,6 +123,7 @@ read_var() {
   grep -E "^$1:" "$VARS_FILE" | head -1 | sed "s/^$1:[[:space:]]*//" | tr -d '"'"'"
 }
 
+CUSTOM_SSHPORT=$(read_var custom_sshport)
 RESTORE_FILENAME=$(read_var restore_backup_filename)
 RESTORE_LOCAL_DIR=$(read_var restore_local_dir)
 RESTORE_REMOTE_DIR=$(read_var restore_remote_backup_dir)
@@ -264,18 +265,21 @@ exec > >(tee -a "$LOGFILE") 2>&1
 echo "Output is logged to: $LOGFILE"
 echo ""
 
-# Pre-flight: remove stale host keys for all BackEnd servers from known_hosts.
+# Pre-flight: refresh host keys for all BackEnd servers in known_hosts.
+# Remove the stale entry (left over from a previous server install) and add
+# the current fingerprint on the custom SSH port so Ansible can connect.
 FOUND_IP=false
 while IFS= read -r line; do
   IP=$(echo "$line" | awk '{print $NF}')
   if [[ "$IP" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-    echo ">>> Pre-flight: removing stale known_hosts entry for $IP"
+    echo ">>> Pre-flight: refreshing known_hosts entry for $IP (port $CUSTOM_SSHPORT)"
     ssh-keygen -f "$HOME/.ssh/known_hosts" -R "$IP" 2>/dev/null || true
+    ssh-keyscan -H -p "$CUSTOM_SSHPORT" "$IP" >> "$HOME/.ssh/known_hosts" 2>/dev/null || true
     FOUND_IP=true
   fi
 done <<< "$BACKEND_HOSTS"
 if [[ "$FOUND_IP" == "false" ]]; then
-  echo "WARNING: could not determine backend IP(s) from inventory — skipping known_hosts cleanup."
+  echo "WARNING: could not determine backend IP(s) from inventory — skipping known_hosts refresh."
 fi
 echo ""
 
