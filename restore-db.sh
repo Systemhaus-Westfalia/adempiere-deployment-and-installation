@@ -67,6 +67,12 @@ VARIABLES TO SET IN group_vars/all/vars.yml:
   restore_local_dir          directory on this control node that holds the backup file
   (all other restore_* and post_restore_* variables have defaults)
 
+ONE-TIME LOCAL SIDE EFFECT:
+  Before connecting to the server, the script runs ssh-keygen -R <BackEnd IP>
+  to remove the server's old SSH host fingerprint from ~/.ssh/known_hosts.
+  A backup is saved as ~/.ssh/known_hosts.old. This is harmless and ensures
+  Ansible can connect after a server reinstall.
+
 INTERACTION POINTS:
   The script pauses at up to two points and waits for operator input.
 
@@ -256,6 +262,21 @@ mkdir -p "$LOG_DIR"
 LOGFILE="$LOG_DIR/restore-db-$(date +%Y%m%d-%H%M%S).log"
 exec > >(tee -a "$LOGFILE") 2>&1
 echo "Output is logged to: $LOGFILE"
+echo ""
+
+# Pre-flight: remove stale host keys for all BackEnd servers from known_hosts.
+FOUND_IP=false
+while IFS= read -r line; do
+  IP=$(echo "$line" | awk '{print $NF}')
+  if [[ "$IP" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+    echo ">>> Pre-flight: removing stale known_hosts entry for $IP"
+    ssh-keygen -f "$HOME/.ssh/known_hosts" -R "$IP" 2>/dev/null || true
+    FOUND_IP=true
+  fi
+done <<< "$BACKEND_HOSTS"
+if [[ "$FOUND_IP" == "false" ]]; then
+  echo "WARNING: could not determine backend IP(s) from inventory — skipping known_hosts cleanup."
+fi
 echo ""
 
 # --- Run restore ---
