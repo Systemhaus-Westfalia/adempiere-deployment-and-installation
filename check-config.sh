@@ -152,6 +152,7 @@ if [[ "$TARGET" == "deploy-backend" ]]; then
     CUSTOM_SSHPORT=$(read_var custom_sshport)
     TIMEZONE=$(read_var timezone)
     SERVER_LOCALE=$(read_var server_locale)
+    SERVER_HOSTNAME=$(read_var server_hostname)
     REPO_URL=$(read_var repo_url)
     REPO_VERSION=$(read_var repo_version)
     INSTALL_PATH=$(read_var install_path)
@@ -234,6 +235,7 @@ except Exception:
     print_mandatory "custom_sshport"       "$CUSTOM_SSHPORT"     "group_vars/all/vars.yml"
     print_mandatory "timezone"             "$TIMEZONE"           "group_vars/all/vars.yml"
     print_mandatory "server_locale"        "$SERVER_LOCALE"      "group_vars/all/vars.yml"
+    print_mandatory "server_hostname"      "$SERVER_HOSTNAME"    "group_vars/all/vars.yml"
     print_mandatory "repo_url"             "$REPO_URL"           "group_vars/all/vars.yml"
     print_mandatory "repo_version"         "$REPO_VERSION"       "group_vars/all/vars.yml"
     print_mandatory "install_path"         "$INSTALL_PATH"       "group_vars/all/vars.yml"

@@ -45,6 +45,10 @@ timezone: your-timezone
 # The locale must be available in the OS. Common values: en_US.UTF-8, de_DE.UTF-8
 server_locale: en_US.UTF-8
 
+# Hostname to assign to the server (replaces the provider-assigned default).
+# Use a short DNS-safe name: letters, digits, and hyphens only — no dots, no underscores.
+server_hostname: your-server-hostname
+
 # ---------------------------------------------------------------------------
 # Application deployment
 # ---------------------------------------------------------------------------
