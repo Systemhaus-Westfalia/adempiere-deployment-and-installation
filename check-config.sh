@@ -112,6 +112,8 @@ print_optional() {
 
 # --- Common: vault and inventory ---
 
+PROJECT_NAME=$(read_var project_name)
+
 VAULT_CONTENT=""
 if [[ -f "$HOME/.vault_pass.txt" ]]; then
     VAULT_CONTENT=$(ansible-vault view --vault-password-file "$HOME/.vault_pass.txt" "$VAULT_FILE" 2>/dev/null || true)
@@ -186,7 +188,8 @@ except Exception:
 
     echo ""
     echo "================================================================"
-    echo "  Configuration check — deploy-backend.sh"
+    echo "  Project : $PROJECT_NAME"
+    echo "  Check   : deploy-backend.sh"
     echo "================================================================"
     echo ""
     echo "  Pre-flight requirements:"
@@ -323,7 +326,8 @@ if [[ "$TARGET" == "restore-db" ]]; then
 
     echo ""
     echo "================================================================"
-    echo "  Configuration check — restore-db.sh"
+    echo "  Project : $PROJECT_NAME"
+    echo "  Check   : restore-db.sh"
     echo "================================================================"
     echo ""
     echo "  Pre-flight requirements:"
