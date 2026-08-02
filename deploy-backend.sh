@@ -33,6 +33,7 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+format_duration() { local s=$1; printf '%dm %ds' $((s / 60)) $((s % 60)); }
 
 # --- Argument parsing (before log setup so --help never creates a log file) ---
 
@@ -246,8 +247,14 @@ fi
 echo "================================================================"
 echo ""
 
+dur_preflight=0; dur_genkey=0
+dur_step3=0; dur_step4=0; dur_step5=0
+dur_step6=0; dur_step7=0; dur_step8=0; dur_step9=0
+GENKEY_STATUS="skipped"
+
 # Pre-flight: remove stale host keys for all BackEnd servers from known_hosts.
 # Required after a server reset — the host presents a new key and SSH would refuse to connect.
+_t=$SECONDS
 FOUND_IP=false
 while IFS= read -r line; do
   IP=$(echo "$line" | awk '{print $NF}')
@@ -261,16 +268,17 @@ if [[ "$FOUND_IP" == "false" ]]; then
   echo "WARNING: could not determine backend IP(s) from inventory — skipping known_hosts cleanup."
 fi
 echo ""
+dur_preflight=$((SECONDS - _t))
 
 KEY_PATH="$SCRIPT_DIR/ssh_keys/adempiere_installation_key"
 REGEN_KEY=false
 
-# Step 1 — Keypair handling
+# Task 1 — Keypair handling
 if [[ -n "$CHECK" ]]; then
-  echo ">>> Step 1: Keypair check — skipped in dry-run mode"
+  echo ">>> Task 1 of 9: Keypair check — skipped in dry-run mode"
   echo ""
 elif [[ -f "$KEY_PATH" ]]; then
-  echo ">>> Step 1: SSH keypair already exists at ssh_keys/adempiere_installation_key"
+  echo ">>> Task 1 of 9: SSH keypair already exists at ssh_keys/adempiere_installation_key"
   echo ""
   echo "  ┌─────────────────────────────────────────────────────────────────┐"
   echo "  │  WARNING                                                        │"
@@ -292,86 +300,111 @@ elif [[ -f "$KEY_PATH" ]]; then
   fi
   echo ""
 else
-  echo ">>> Step 1: No keypair found — a new one will be generated."
+  echo ">>> Task 1 of 9: No keypair found — a new one will be generated."
   REGEN_KEY=true
   echo ""
 fi
 
-# Step 2 — Generate keypair
+# Task 2 — Generate keypair
 if [[ "$REGEN_KEY" == "true" ]]; then
-  echo ">>> Step 2: genkey.yml — Generate SSH keypair"
-  ansible-playbook genkey.yml $CHECK
+  echo ">>> Task 2 of 9: genkey.yml — Generate SSH keypair"
+  _t=$SECONDS; ansible-playbook genkey.yml $CHECK
+  dur_genkey=$((SECONDS - _t)); GENKEY_STATUS="$(format_duration $dur_genkey)"
 else
-  echo ">>> Step 2: genkey.yml — Skipped (existing keypair kept)"
+  echo ">>> Task 2 of 9: genkey.yml — Skipped (existing keypair kept)"
 fi
 echo ""
 
 _box() { printf "  │  %-63s│\n" "$1"; }
 echo "  ┌─────────────────────────────────────────────────────────────────┐"
-_box "STEPS 3-5 CONNECT AS ROOT ON PORT 22"
+_box "TASKS 3-5 CONNECT AS ROOT ON PORT 22"
 _box "Ensure port 22 is open on the server before continuing."
 _box ""
 _box "Cloud firewall users (Contabo, Hetzner, AWS ...): verify now."
-_box "Port 22 will be closed after Step 5 (serversconf.yml)."
+_box "Port 22 will be closed after Task 5 (serversconf.yml)."
 echo "  └─────────────────────────────────────────────────────────────────┘"
 echo ""
 read -rp "  Confirm port 22 is open, then press ENTER to continue: " _
 echo ""
 
-# Step 3 — Distribute public key to backend (root, port 22)
-echo ">>> Step 3: serversprep.yml — Distribute SSH key to BackEnd"
-ansible-playbook serversprep.yml --limit BackEnd $CHECK
+# Task 3 — Distribute public key to backend (root, port 22)
+echo ">>> Task 3 of 9: serversprep.yml — Distribute SSH key to BackEnd"
+_t=$SECONDS; ansible-playbook serversprep.yml --limit BackEnd $CHECK
+dur_step3=$((SECONDS - _t))
 echo ""
 
-# Step 4 — OS updates + reboot
-echo ">>> Step 4: os-updates.yml — OS update + reboot"
-ansible-playbook os-updates.yml --limit BackEnd $CHECK
+# Task 4 — OS updates + reboot
+echo ">>> Task 4 of 9: os-updates.yml — OS update + reboot"
+_t=$SECONDS; ansible-playbook os-updates.yml --limit BackEnd $CHECK
+dur_step4=$((SECONDS - _t))
 echo ""
 
-# Step 5 — Full server hardening
-echo ">>> Step 5: serversconf.yml — Server hardening"
-ansible-playbook serversconf.yml --limit BackEnd $CHECK
+# Task 5 — Full server hardening
+echo ">>> Task 5 of 9: serversconf.yml — Server hardening"
+_t=$SECONDS; ansible-playbook serversconf.yml --limit BackEnd $CHECK
+dur_step5=$((SECONDS - _t))
 echo ""
 
 if [[ -z "$CHECK" ]]; then
   echo "  ┌─────────────────────────────────────────────────────────────────┐"
   _box "SSH PORT HAS CHANGED"
   _box "serversconf.yml has moved SSH from port 22 to port $CUSTOM_SSHPORT."
-  _box "Steps 6-9 will connect on the new port."
+  _box "Tasks 6-9 will connect on the new port."
   _box ""
   _box "Cloud firewall users (Contabo, Hetzner, AWS ...): act now."
   _box "  1. Open port $CUSTOM_SSHPORT."
   _box "  2. Close port 22."
-  _box "Steps 6-9 will fail to connect if port $CUSTOM_SSHPORT is blocked."
+  _box "Tasks 6-9 will fail to connect if port $CUSTOM_SSHPORT is blocked."
   echo "  └─────────────────────────────────────────────────────────────────┘"
   echo ""
-  read -rp "  Firewall updated? Press ENTER to continue with Steps 6-9: " _
+  read -rp "  Firewall updated? Press ENTER to continue with Tasks 6-9: " _
 else
   echo "  NOTE (dry run): in a real run SSH moves to port $CUSTOM_SSHPORT after this step."
   echo "  Ensure port $CUSTOM_SSHPORT is open in your cloud firewall before running live."
   echo ""
-  read -rp "  Press ENTER to continue with Steps 6-9: " _
+  read -rp "  Press ENTER to continue with Tasks 6-9: " _
 fi
 echo ""
 
-# Step 6 — Swap
-echo ">>> Step 6: serverswap.yml — Configure swap"
-ansible-playbook serverswap.yml --limit BackEnd $CHECK
+# Task 6 — Swap
+echo ">>> Task 6 of 9: serverswap.yml — Configure swap"
+_t=$SECONDS; ansible-playbook serverswap.yml --limit BackEnd $CHECK
+dur_step6=$((SECONDS - _t))
 echo ""
 
-# Step 7 — Docker CE
-echo ">>> Step 7: install-docker.yml — Install Docker"
-ansible-playbook install-docker.yml --limit BackEnd $CHECK
+# Task 7 — Docker CE
+echo ">>> Task 7 of 9: install-docker.yml — Install Docker"
+_t=$SECONDS; ansible-playbook install-docker.yml --limit BackEnd $CHECK
+dur_step7=$((SECONDS - _t))
 echo ""
 
-# Step 8 — ADempiere stack
-echo ">>> Step 8: deploy-adempiere.yml — Deploy ADempiere"
-ansible-playbook deploy-adempiere.yml $CHECK
+# Task 8 — ADempiere stack
+echo ">>> Task 8 of 9: deploy-adempiere.yml — Deploy ADempiere"
+_t=$SECONDS; ansible-playbook deploy-adempiere.yml $CHECK
+dur_step8=$((SECONDS - _t))
 echo ""
 
-# Step 9 — Crontab
-echo ">>> Step 9: deploy-crontab.yml — Configure crontab"
-ansible-playbook deploy-crontab.yml $CHECK
+# Task 9 — Crontab
+echo ">>> Task 9 of 9: deploy-crontab.yml — Configure crontab"
+_t=$SECONDS; ansible-playbook deploy-crontab.yml $CHECK
+dur_step9=$((SECONDS - _t))
+echo ""
+
+CYAN='\033[0;36m'; BOLD='\033[1m'; NC='\033[0m'
+echo -e "${CYAN}${BOLD}═══════════════════════════════════════════════════════════${NC}"
+echo -e "${CYAN}${BOLD}  ⏱  Deployment Timing${NC}"
+echo -e "${CYAN}  Pre-flight:           $(format_duration $dur_preflight)${NC}"
+echo -e "${CYAN}  Task 2  genkey:       $GENKEY_STATUS${NC}"
+echo -e "${CYAN}  Task 3  serversprep:  $(format_duration $dur_step3)${NC}"
+echo -e "${CYAN}  Task 4  os-updates:   $(format_duration $dur_step4)${NC}"
+echo -e "${CYAN}  Task 5  serversconf:  $(format_duration $dur_step5)${NC}"
+echo -e "${CYAN}  Task 6  swap:         $(format_duration $dur_step6)${NC}"
+echo -e "${CYAN}  Task 7  Docker:       $(format_duration $dur_step7)${NC}"
+echo -e "${CYAN}  Task 8  ADempiere:    $(format_duration $dur_step8)${NC}"
+echo -e "${CYAN}  Task 9  crontab:      $(format_duration $dur_step9)${NC}"
+echo -e "${CYAN}  ─────────────────────${NC}"
+echo -e "${CYAN}${BOLD}  Total:                $(format_duration $((dur_preflight + dur_genkey + dur_step3 + dur_step4 + dur_step5 + dur_step6 + dur_step7 + dur_step8 + dur_step9)))${NC}"
+echo -e "${CYAN}${BOLD}═══════════════════════════════════════════════════════════${NC}"
 echo ""
 
 echo "================================================================"
