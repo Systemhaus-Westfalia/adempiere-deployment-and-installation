@@ -20,10 +20,11 @@
 #   Step 3  serversprep.yml    — Distribute the public key to the backend (root, port 22).
 #   Step 4  os-updates.yml     — OS update + reboot.
 #   Step 5  serversconf.yml    — Full server hardening: user, SSH, packages.
-#   Step 6  serverswap.yml     — Configure swap file (8 GB, from group_vars/BackEnd.yml).
-#   Step 7  install-docker.yml — Install Docker CE (pinned to 28.x).
-#   Step 8  deploy-adempiere.yml — Deploy the ADempiere container stack.
-#   Step 9  deploy-crontab.yml  — Configure crontab: @reboot start, 23:50 stop, 23:55 restart.
+#   Step 6  deploy-wireguard.yml — Install WireGuard VPN server (skipped if wireguard_enabled: false).
+#   Step 7  serverswap.yml     — Configure swap file (8 GB, from group_vars/BackEnd.yml).
+#   Step 8  install-docker.yml — Install Docker CE (pinned to 28.x).
+#   Step 9  deploy-adempiere.yml — Deploy the ADempiere container stack.
+#   Step 10 deploy-crontab.yml  — Configure crontab: @reboot start, 23:50 stop, 23:55 restart.
 #
 # NOTE ON --check:
 #   Step 1 (keypair handling) is skipped in check mode — no local files are touched.
@@ -46,16 +47,17 @@ Usage:
   ./deploy-backend.sh --check   Dry run   — show what Ansible would change; no writes.
   ./deploy-backend.sh --help    This help.
 
-WHAT IT DOES (9 steps):
-  1  Keypair check      — keep or regenerate ssh_keys/adempiere_installation_key.
-  2  genkey.yml         — generate RSA keypair (skipped when keypair is kept).
-  3  serversprep.yml    — copy public key to BackEnd as root on port 22.
-  4  os-updates.yml     — OS update + reboot; waits for the server to return.
-  5  serversconf.yml    — harden SSH, create admin user, move SSH to custom port.
-  6  serverswap.yml     — configure swap (size from group_vars/BackEnd.yml).
-  7  install-docker.yml — install Docker CE.
-  8  deploy-adempiere.yml — deploy the ADempiere container stack.
-  9  deploy-crontab.yml   — configure crontab (start/stop/restart schedule).
+WHAT IT DOES (10 steps):
+  1  Keypair check        — keep or regenerate ssh_keys/adempiere_installation_key.
+  2  genkey.yml           — generate RSA keypair (skipped when keypair is kept).
+  3  serversprep.yml      — copy public key to BackEnd as root on port 22.
+  4  os-updates.yml       — OS update + reboot; waits for the server to return.
+  5  serversconf.yml      — harden SSH, create admin user, move SSH to custom port.
+  6  deploy-wireguard.yml — install WireGuard VPN server (skipped if wireguard_enabled: false).
+  7  serverswap.yml       — configure swap (size from group_vars/BackEnd.yml).
+  8  install-docker.yml   — install Docker CE.
+  9  deploy-adempiere.yml — deploy the ADempiere container stack.
+  10 deploy-crontab.yml   — configure crontab (start/stop/restart schedule).
 
 REAL RUN (no argument):
   Displays a full configuration summary and asks for explicit YES before
@@ -65,7 +67,7 @@ DRY RUN (--check):
   Passes --check to every Ansible playbook — no changes are made on the server.
   Ansible still connects to the server, so both ports must be reachable:
     port 22          for Steps 3-5 (root access, before SSH hardening)
-    custom SSH port  for Steps 6-9 (admin user, after SSH hardening)
+    custom SSH port  for Steps 6-10 (admin user, after SSH hardening)
   One local side effect always runs even in --check mode:
     ~/.ssh/known_hosts is updated — the old host fingerprint for the
     BackEnd IP is removed so Ansible can connect without a key-mismatch
@@ -77,22 +79,24 @@ DRY RUN (--check):
     Step 1 (keypair handling) is skipped — no local files are touched.
     Step 4 (os-updates): the reboot task is skipped in check mode; the
     dry-run output does not reflect the post-reboot state.
-    Steps 6-9 require the admin user and custom port to already exist on
+    Steps 6-10 require the admin user and custom port to already exist on
     the server — their --check output is approximate on a fresh server.
 
 INTERACTION POINTS:
   The script pauses at up to four points and waits for input.
 
-  #  When                           Mode        Prompt
-  -  -----------------------------  ----------  --------------------------------
-  1  Before deployment starts       real only   "Type YES to proceed"
-  2  Existing SSH keypair found     real only   "Delete and regenerate? [yes/NO]"
-  3  Before Step 3 (needs port 22)  always      "Confirm port 22 is open — ENTER"
-  4  After Step 5 (port changed)    always      "Firewall updated? — ENTER"
+  #  When                                Mode        Prompt
+  -  ------------------------------------  ----------  --------------------------------
+  1  Before deployment starts             real only   "Type YES to proceed"
+  2  Existing SSH keypair found           real only   "Delete and regenerate? [yes/NO]"
+  3  Before Step 3 (needs port 22)        always      "Confirm port 22 is open — ENTER"
+  4  After Step 5 (SSH port changed)      always      "Firewall updated for SSH? — ENTER"
+  5  After Step 6 (if WireGuard enabled)  always      "Firewall updated for WireGuard? — ENTER"
 
   Points 1 and 2 only appear in a real run.
   Points 3 and 4 appear in both real and dry-run mode because Ansible
   connects to the server in both cases.
+  Point 5 appears only when wireguard_enabled: true.
 
 PREREQUISITES:
   ~/.vault_pass.txt            vault password file (mode 0600)
@@ -156,6 +160,9 @@ REPO_VERSION=$(read_var repo_version)
 INSTALL_PATH=$(read_var install_path)
 SWAP_SIZE=$(read_backend_var swap_size_mb)
 CRONTAB_ENABLED=$(read_backend_var crontab_enabled)
+WIREGUARD_ENABLED=$(read_backend_var wireguard_enabled)
+WIREGUARD_PORT=$(read_var wireguard_port)
+WIREGUARD_ADDR=$(read_var wireguard_server_address)
 
 CRONTAB_DEFAULTS_FILE="$SCRIPT_DIR/roles/deploy-crontab/defaults/main.yml"
 CRONTAB_JOBS=$(python3 -c "
@@ -230,6 +237,13 @@ if [[ "$CRONTAB_ENABLED" == "true" ]]; then
   echo "$CRONTAB_JOBS"
 fi
 echo ""
+echo "  WireGuard  (group_vars/BackEnd.yml + group_vars/all/vars.yml):"
+printf "    %-30s %s\n" "Enabled:"                  "$WIREGUARD_ENABLED"
+if [[ "$WIREGUARD_ENABLED" == "true" ]]; then
+  printf "    %-30s %s\n" "Listen port (UDP):"      "$WIREGUARD_PORT"
+  printf "    %-30s %s\n" "Server VPN address:"     "$WIREGUARD_ADDR"
+fi
+echo ""
 echo "  Secrets  (group_vars/all/vault.yml — values not shown):"
 printf "    %-30s %s\n" "root_user_password:"       "$(vault_status root_user_password)"
 printf "    %-30s %s\n" "adempiere_user_password:"  "$(vault_status adempiere_user_password)"
@@ -249,8 +263,8 @@ echo ""
 
 dur_preflight=0; dur_genkey=0
 dur_step3=0; dur_step4=0; dur_step5=0
-dur_step6=0; dur_step7=0; dur_step8=0; dur_step9=0
-GENKEY_STATUS="skipped"
+dur_wireguard=0; dur_step7=0; dur_step8=0; dur_step9=0; dur_step10=0
+GENKEY_STATUS="skipped"; WIREGUARD_STATUS="skipped"
 
 # Pre-flight: remove stale host keys for all BackEnd servers from known_hosts.
 # Required after a server reset — the host presents a new key and SSH would refuse to connect.
@@ -275,10 +289,10 @@ REGEN_KEY=false
 
 # Task 1 — Keypair handling
 if [[ -n "$CHECK" ]]; then
-  echo ">>> Task 1 of 9: Keypair check — skipped in dry-run mode"
+  echo ">>> Task 1 of 10: Keypair check — skipped in dry-run mode"
   echo ""
 elif [[ -f "$KEY_PATH" ]]; then
-  echo ">>> Task 1 of 9: SSH keypair already exists at ssh_keys/adempiere_installation_key"
+  echo ">>> Task 1 of 10: SSH keypair already exists at ssh_keys/adempiere_installation_key"
   echo ""
   echo "  ┌─────────────────────────────────────────────────────────────────┐"
   echo "  │  WARNING                                                        │"
@@ -300,18 +314,18 @@ elif [[ -f "$KEY_PATH" ]]; then
   fi
   echo ""
 else
-  echo ">>> Task 1 of 9: No keypair found — a new one will be generated."
+  echo ">>> Task 1 of 10: No keypair found — a new one will be generated."
   REGEN_KEY=true
   echo ""
 fi
 
 # Task 2 — Generate keypair
 if [[ "$REGEN_KEY" == "true" ]]; then
-  echo ">>> Task 2 of 9: genkey.yml — Generate SSH keypair"
+  echo ">>> Task 2 of 10: genkey.yml — Generate SSH keypair"
   _t=$SECONDS; ansible-playbook genkey.yml $CHECK
   dur_genkey=$((SECONDS - _t)); GENKEY_STATUS="$(format_duration $dur_genkey)"
 else
-  echo ">>> Task 2 of 9: genkey.yml — Skipped (existing keypair kept)"
+  echo ">>> Task 2 of 10: genkey.yml — Skipped (existing keypair kept)"
 fi
 echo ""
 
@@ -328,19 +342,19 @@ read -rp "  Confirm port 22 is open, then press ENTER to continue: " _
 echo ""
 
 # Task 3 — Distribute public key to backend (root, port 22)
-echo ">>> Task 3 of 9: serversprep.yml — Distribute SSH key to BackEnd"
+echo ">>> Task 3 of 10: serversprep.yml — Distribute SSH key to BackEnd"
 _t=$SECONDS; ansible-playbook serversprep.yml --limit BackEnd $CHECK
 dur_step3=$((SECONDS - _t))
 echo ""
 
 # Task 4 — OS updates + reboot
-echo ">>> Task 4 of 9: os-updates.yml — OS update + reboot"
+echo ">>> Task 4 of 10: os-updates.yml — OS update + reboot"
 _t=$SECONDS; ansible-playbook os-updates.yml --limit BackEnd $CHECK
 dur_step4=$((SECONDS - _t))
 echo ""
 
 # Task 5 — Full server hardening
-echo ">>> Task 5 of 9: serversconf.yml — Server hardening"
+echo ">>> Task 5 of 10: serversconf.yml — Server hardening"
 _t=$SECONDS; ansible-playbook serversconf.yml --limit BackEnd $CHECK
 dur_step5=$((SECONDS - _t))
 echo ""
@@ -349,45 +363,72 @@ if [[ -z "$CHECK" ]]; then
   echo "  ┌─────────────────────────────────────────────────────────────────┐"
   _box "SSH PORT HAS CHANGED"
   _box "serversconf.yml has moved SSH from port 22 to port $CUSTOM_SSHPORT."
-  _box "Tasks 6-9 will connect on the new port."
+  _box "Tasks 6-10 will connect on the new port."
   _box ""
   _box "Cloud firewall users (Contabo, Hetzner, AWS ...): act now."
   _box "  1. Open port $CUSTOM_SSHPORT."
   _box "  2. Close port 22."
-  _box "Tasks 6-9 will fail to connect if port $CUSTOM_SSHPORT is blocked."
+  _box "Tasks 6-10 will fail to connect if port $CUSTOM_SSHPORT is blocked."
   echo "  └─────────────────────────────────────────────────────────────────┘"
   echo ""
-  read -rp "  Firewall updated? Press ENTER to continue with Tasks 6-9: " _
+  read -rp "  Firewall updated for SSH? Press ENTER to continue with Tasks 6-10: " _
 else
   echo "  NOTE (dry run): in a real run SSH moves to port $CUSTOM_SSHPORT after this step."
   echo "  Ensure port $CUSTOM_SSHPORT is open in your cloud firewall before running live."
   echo ""
-  read -rp "  Press ENTER to continue with Tasks 6-9: " _
+  read -rp "  Press ENTER to continue with Tasks 6-10: " _
 fi
 echo ""
 
-# Task 6 — Swap
-echo ">>> Task 6 of 9: serverswap.yml — Configure swap"
-_t=$SECONDS; ansible-playbook serverswap.yml --limit BackEnd $CHECK
-dur_step6=$((SECONDS - _t))
+# Task 6 — WireGuard VPN server
+if [[ "$WIREGUARD_ENABLED" == "true" ]]; then
+  echo ">>> Task 6 of 10: deploy-wireguard.yml — Install WireGuard VPN server"
+  _t=$SECONDS; ansible-playbook deploy-wireguard.yml $CHECK
+  dur_wireguard=$((SECONDS - _t)); WIREGUARD_STATUS="$(format_duration $dur_wireguard)"
+  echo ""
+  echo "  ┌─────────────────────────────────────────────────────────────────┐"
+  _box "WIREGUARD UDP PORT $WIREGUARD_PORT"
+  if [[ -z "$CHECK" ]]; then
+    _box "WireGuard is now running. Open UDP port $WIREGUARD_PORT in your"
+    _box "cloud firewall so POS clients can reach the VPN server."
+  else
+    _box "NOTE (dry run): in a real run WireGuard would now be running."
+    _box "Open UDP port $WIREGUARD_PORT in your cloud firewall so POS"
+    _box "clients can reach the VPN server."
+  fi
+  _box ""
+  _box "Cloud firewall users (Contabo, Hetzner, AWS ...): act now."
+  _box "Protocol: UDP -- not TCP."
+  echo "  └─────────────────────────────────────────────────────────────────┘"
+  echo ""
+  read -rp "  Firewall updated for WireGuard UDP? Press ENTER to continue: " _
+else
+  echo ">>> Task 6 of 10: deploy-wireguard.yml — Skipped (wireguard_enabled: false)"
+fi
 echo ""
 
-# Task 7 — Docker CE
-echo ">>> Task 7 of 9: install-docker.yml — Install Docker"
-_t=$SECONDS; ansible-playbook install-docker.yml --limit BackEnd $CHECK
+# Task 7 — Swap
+echo ">>> Task 7 of 10: serverswap.yml — Configure swap"
+_t=$SECONDS; ansible-playbook serverswap.yml --limit BackEnd $CHECK
 dur_step7=$((SECONDS - _t))
 echo ""
 
-# Task 8 — ADempiere stack
-echo ">>> Task 8 of 9: deploy-adempiere.yml — Deploy ADempiere"
-_t=$SECONDS; ansible-playbook deploy-adempiere.yml $CHECK
+# Task 8 — Docker CE
+echo ">>> Task 8 of 10: install-docker.yml — Install Docker"
+_t=$SECONDS; ansible-playbook install-docker.yml --limit BackEnd $CHECK
 dur_step8=$((SECONDS - _t))
 echo ""
 
-# Task 9 — Crontab
-echo ">>> Task 9 of 9: deploy-crontab.yml — Configure crontab"
-_t=$SECONDS; ansible-playbook deploy-crontab.yml $CHECK
+# Task 9 — ADempiere stack
+echo ">>> Task 9 of 10: deploy-adempiere.yml — Deploy ADempiere"
+_t=$SECONDS; ansible-playbook deploy-adempiere.yml $CHECK
 dur_step9=$((SECONDS - _t))
+echo ""
+
+# Task 10 — Crontab
+echo ">>> Task 10 of 10: deploy-crontab.yml — Configure crontab"
+_t=$SECONDS; ansible-playbook deploy-crontab.yml $CHECK
+dur_step10=$((SECONDS - _t))
 echo ""
 
 CYAN='\033[0;36m'; BOLD='\033[1m'; NC='\033[0m'
@@ -398,12 +439,13 @@ echo -e "${CYAN}  Task 2  genkey:       $GENKEY_STATUS${NC}"
 echo -e "${CYAN}  Task 3  serversprep:  $(format_duration $dur_step3)${NC}"
 echo -e "${CYAN}  Task 4  os-updates:   $(format_duration $dur_step4)${NC}"
 echo -e "${CYAN}  Task 5  serversconf:  $(format_duration $dur_step5)${NC}"
-echo -e "${CYAN}  Task 6  swap:         $(format_duration $dur_step6)${NC}"
-echo -e "${CYAN}  Task 7  Docker:       $(format_duration $dur_step7)${NC}"
-echo -e "${CYAN}  Task 8  ADempiere:    $(format_duration $dur_step8)${NC}"
-echo -e "${CYAN}  Task 9  crontab:      $(format_duration $dur_step9)${NC}"
+echo -e "${CYAN}  Task 6  WireGuard:    $WIREGUARD_STATUS${NC}"
+echo -e "${CYAN}  Task 7  swap:         $(format_duration $dur_step7)${NC}"
+echo -e "${CYAN}  Task 8  Docker:       $(format_duration $dur_step8)${NC}"
+echo -e "${CYAN}  Task 9  ADempiere:    $(format_duration $dur_step9)${NC}"
+echo -e "${CYAN}  Task 10 crontab:      $(format_duration $dur_step10)${NC}"
 echo -e "${CYAN}  ─────────────────────${NC}"
-echo -e "${CYAN}${BOLD}  Total:                $(format_duration $((dur_preflight + dur_genkey + dur_step3 + dur_step4 + dur_step5 + dur_step6 + dur_step7 + dur_step8 + dur_step9)))${NC}"
+echo -e "${CYAN}${BOLD}  Total:                $(format_duration $((dur_preflight + dur_genkey + dur_step3 + dur_step4 + dur_step5 + dur_wireguard + dur_step7 + dur_step8 + dur_step9 + dur_step10)))${NC}"
 echo -e "${CYAN}${BOLD}═══════════════════════════════════════════════════════════${NC}"
 echo ""
 
