@@ -40,7 +40,7 @@
     msg: "package=wireguard"
   when: wireguard_enabled | bool
 
-- name: Install WireGuard
+- name: "APPLY: Install WireGuard"
   ansible.builtin.package:
     name: wireguard
     state: present
@@ -51,7 +51,7 @@
     msg: "path=/etc/wireguard | owner=root | mode=0700"
   when: wireguard_enabled | bool
 
-- name: Ensure /etc/wireguard directory exists
+- name: "APPLY: Ensure /etc/wireguard directory exists"
   ansible.builtin.file:
     path: /etc/wireguard
     state: directory
@@ -65,7 +65,7 @@
     msg: "src=ssh_keys/wireguard_server_private.key | dest=/etc/wireguard/server_private.key | mode=0600"
   when: wireguard_enabled | bool
 
-- name: Deploy server private key
+- name: "APPLY: Deploy server private key"
   ansible.builtin.copy:
     content: "{{ lookup('file', playbook_dir + '/ssh_keys/wireguard_server_private.key') | trim }}\n"
     dest: /etc/wireguard/server_private.key
@@ -80,7 +80,7 @@
     msg: "src=ssh_keys/wireguard_server_public.key | dest=/etc/wireguard/server_public.key | mode=0644"
   when: wireguard_enabled | bool
 
-- name: Deploy server public key
+- name: "APPLY: Deploy server public key"
   ansible.builtin.copy:
     content: "{{ lookup('file', playbook_dir + '/ssh_keys/wireguard_server_public.key') | trim }}\n"
     dest: /etc/wireguard/server_public.key
@@ -94,7 +94,7 @@
     msg: "dest=/etc/wireguard/wg0.conf | port={{ wireguard_port }} | address={{ wireguard_server_address }}"
   when: wireguard_enabled | bool
 
-- name: Deploy wg0.conf from template
+- name: "APPLY: Deploy wg0.conf from template"
   ansible.builtin.template:
     src: wg0.conf.j2
     dest: /etc/wireguard/wg0.conf
@@ -110,7 +110,7 @@
     msg: "service=wg-quick@wg0 | state=started | enabled=yes"
   when: wireguard_enabled | bool
 
-- name: Enable and start wg-quick@wg0
+- name: "APPLY: Enable and start wg-quick@wg0"
   ansible.builtin.systemd:
     name: wg-quick@wg0
     enabled: true
