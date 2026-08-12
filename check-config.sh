@@ -110,6 +110,23 @@ print_optional() {
     print_row "[OPT]" "$1" "${2:-(not set)}" "$3"
 }
 
+print_backend_list() {
+    local hosts_yml="$SCRIPT_DIR/inventories/hosts.yml"
+    while IFS= read -r line; do
+        [[ -z "$line" ]] && continue
+        local ip ip_regex comment
+        ip=$(echo "$line" | awk '{print $NF}')
+        ip_regex="${ip//./\\.}"
+        comment=$(grep -E "^[[:space:]]+ansible_host:[[:space:]]+${ip_regex}[[:space:]]*#" \
+                      "$hosts_yml" 2>/dev/null | sed 's/.*#[[:space:]]*//' | head -1 || true)
+        if [[ -n "$comment" ]]; then
+            printf "         %s  (%s)\n" "$line" "$comment"
+        else
+            printf "         %s\n" "$line"
+        fi
+    done <<< "$BACKEND_LIST"
+}
+
 # --- Common: vault and inventory ---
 
 PROJECT_NAME=$(read_var project_name)
@@ -206,9 +223,7 @@ except Exception:
 
     if [[ "$BACKEND_COUNT" -gt 0 ]]; then
         print_preflight true  "BackEnd inventory" "$BACKEND_COUNT host(s)" "inventories/hosts.yml" ""
-        while IFS= read -r line; do
-            [[ -n "$line" ]] && printf "         %s\n" "$line"
-        done <<< "$BACKEND_LIST"
+        print_backend_list
     else
         print_preflight false "BackEnd inventory" "NO HOSTS" "inventories/hosts.yml" \
             "no BackEnd hosts defined in inventory"
@@ -373,9 +388,7 @@ if [[ "$TARGET" == "restore-db" ]]; then
 
     if [[ "$BACKEND_COUNT" -gt 0 ]]; then
         print_preflight true  "BackEnd inventory" "$BACKEND_COUNT host(s)" "inventories/hosts.yml" ""
-        while IFS= read -r line; do
-            [[ -n "$line" ]] && printf "         %s\n" "$line"
-        done <<< "$BACKEND_LIST"
+        print_backend_list
     else
         print_preflight false "BackEnd inventory" "NO HOSTS" "inventories/hosts.yml" \
             "no BackEnd hosts defined in inventory"
