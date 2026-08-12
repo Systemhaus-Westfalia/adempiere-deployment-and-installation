@@ -21,6 +21,22 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 format_duration() { local s=$1; printf '%dm %ds' $((s / 60)) $((s % 60)); }
+annotate_backend_hosts() {
+    local hosts_yml="$SCRIPT_DIR/inventories/hosts.yml"
+    while IFS= read -r line; do
+        [[ -z "$line" ]] && continue
+        local ip ip_regex comment
+        ip=$(echo "$line" | awk '{print $NF}')
+        ip_regex="${ip//./\\.}"
+        comment=$(grep -E "^[[:space:]]+ansible_host:[[:space:]]+${ip_regex}[[:space:]]*#" \
+                      "$hosts_yml" 2>/dev/null | sed 's/.*#[[:space:]]*//' | head -1 || true)
+        if [[ -n "$comment" ]]; then
+            echo "$line  ($comment)"
+        else
+            echo "$line"
+        fi
+    done <<< "$1"
+}
 
 # --- Argument parsing (before any ansible call so --help is instant) ---
 
@@ -114,6 +130,7 @@ except Exception:
 " 2>/dev/null || true)
 
 BACKEND_COUNT=$(echo "$BACKEND_HOSTS" | grep -c "→" 2>/dev/null || echo "0")
+BACKEND_HOSTS_DISPLAY=$(annotate_backend_hosts "$BACKEND_HOSTS")
 
 # --- Read variables from vars.yml ---
 
@@ -202,7 +219,7 @@ if [[ "$BACKEND_COUNT" -gt 1 ]]; then
   echo ""
   echo "  More than one BackEnd server is defined in the inventory:"
   echo ""
-  echo "$BACKEND_HOSTS"
+  echo "$BACKEND_HOSTS_DISPLAY"
   echo ""
   echo "  The restore will run on ALL servers listed above."
   echo "  This operation CANNOT be undone on any of them."
@@ -231,7 +248,7 @@ echo "  Destination  : $RESTORE_REMOTE_DIR/"
 echo "  Keep archive : $KEEP_RESTORE_FILE"
 echo ""
 echo "  Backend host(s) (from inventory):"
-echo "$BACKEND_HOSTS"
+echo "$BACKEND_HOSTS_DISPLAY"
 echo "  Container    : $PG_CONTAINER"
 echo "  Database     : $ADEMPIERE_DB  (owner: $ADEMPIERE_OWNER)"
 echo "  Superuser    : $PG_SUPERUSER  (via docker exec — no TCP auth)"
