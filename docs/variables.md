@@ -13,6 +13,7 @@
 - [8. Role defaults — deploy-crontab](#8-role-defaults--deploy-crontab)
 - [9. Role defaults — serverswap](#9-role-defaults--serverswap)
 - [10. Role defaults — genkey](#10-role-defaults--genkey)
+- [11. Role defaults — serversconf](#11-role-defaults--serversconf)
 
 ---
 
@@ -245,6 +246,44 @@ These variables are only needed when running `./restore-db.sh` or `adempiere-res
 |---|---|---|
 | `key_size` | `4096` | RSA key size in bits. 4096-bit is recommended; 2048 works but is not recommended for new deployments. |
 | `key_name` | *(set in vars.yml)* | Keypair filename under `ssh_keys/`. Inherits from `group_vars/all/vars.yml`. Set it there — not here — so all playbooks use the same value. |
+
+---
+
+## 11. Role defaults — `serversconf`
+
+**File:** `roles/serversconf/defaults/main.yml` — override in `group_vars/all/vars.yml`.
+
+| Variable | M/O | Default | Description |
+|---|---|---|---|
+| `motd_header` | **O** | ACME Inc (figlet small) | Multi-line ASCII art written to `/etc/motd` on every SSH login. The default is a generic placeholder. Override with your own art in `group_vars/all/vars.yml`. |
+
+**How to generate and set your own banner:**
+
+```bash
+figlet -f small 'My Company'
+```
+
+Add the output to `group_vars/all/vars.yml`. Use `|2` (explicit YAML indent indicator) and prefix every line with exactly 2 spaces, so YAML strips 2 and restores the original art — including any leading space on the first line that figlet produces for some letters:
+
+```yaml
+motd_header: |2
+    __  __         ___
+   |  \/  |_  _   / __|___ _ __  _ __  __ _ _ _ _  _
+   | |\/| | || | | (__/ _ \ '  \| '_ \/ _` | ' \ || |
+   |_|  |_|\_, |  \___\___/_|_|_| .__/\__,_|_||_\_, |
+           |__/                 |_|             |__/
+```
+
+Verify before deploying:
+
+```bash
+python3 -c "
+import yaml
+with open('group_vars/all/vars.yml') as f:
+    data = yaml.safe_load(f)
+print(data['motd_header'])
+"
+```
 
 ---
 
