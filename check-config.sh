@@ -312,6 +312,11 @@ except Exception:
             [[ -n "$line" ]] && printf "           %s\n" "$line"
         done <<< "$CRONTAB_JOBS_DETAIL"
     fi
+    if grep -q "^motd_header:" "$VARS_FILE" 2>/dev/null; then
+        print_row "[OK]"   "motd_header" "set in vars.yml" "group_vars/all/vars.yml"
+    else
+        print_row "[WARN]" "motd_header" "not set — ACME Inc default will be used" "roles/serversconf/defaults/main.yml"
+    fi
 
     echo ""
     echo "================================================================"
