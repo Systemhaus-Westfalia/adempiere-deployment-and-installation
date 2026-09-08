@@ -328,6 +328,12 @@ printf "    %-30s %s\n" "SSH port (after hardening):" "$CUSTOM_SSHPORT"
 printf "    %-30s %s\n" "Timezone:"                   "$TIMEZONE"
 printf "    %-30s %s\n" "Locale:"                     "$SERVER_LOCALE"
 printf "    %-30s %s\n" "Swap:"                       "${SWAP_SIZE} MB"
+if grep -q "^motd_header:" "$VARS_FILE" 2>/dev/null; then
+    _MOTD_SOURCE="custom (group_vars/all/vars.yml)"
+else
+    _MOTD_SOURCE="default — ACME Inc  (roles/serversconf/defaults/main.yml)"
+fi
+printf "    %-30s %s\n" "MOTD header:"                "$_MOTD_SOURCE"
 echo ""
 echo "  Application  (group_vars/all/vars.yml):"
 printf "    %-30s %s\n" "Repository URL:"             "$REPO_URL"
